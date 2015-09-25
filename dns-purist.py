@@ -8,15 +8,18 @@ import dns.query, dns.zone, dns.reversename, dns.resolver, dns.ipv4
 debug = False
 # DNS server to AXFR from
 dns_server = 'ns1-int.scea.com'
+zone_suffix = '.zone'
+revzone_suffix = '.revzone'
 
 zone_name = []
 
 # a dict of lists of all the forward (A, AAAA) records
 forward_records = collections.defaultdict(list)
 # a dict of lists of all the reverse (PTR) records
-reverse_records = []
+reverse_records = collections.defaultdict(list)
 
-usage = 'Usage: dns-purist [--debug] [--warning] zonename or zonefile.zone...'
+
+usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--ping] [force_ptr_lookups] targetzone, zonefile.zone, zonefile.revzone'
 
 def ping(host):
     """
@@ -59,13 +62,43 @@ def load_forward_records(zone, record_type):
       # append the address we just found to the list of addresses for this FQDN
       forward_records[fqdn].append(addr)
 
+
+def load_reverse_records(zone, record_type):
+## modifies global reverse_records[] !!!
+   if (record_type != 'PTR'):
+      print('load_reverse_records: invalid record type %s' % record_type)
+      sys.exit()
+   for (qname, ttl, rdata) in zone.iterate_rdatas(record_type):
+       # this is already a full address since we used relativize=False
+       if (debug):
+           print ('load_reverse_records: qname %s target %s' % (qname, str(rdata.target)))
+       # append the target we just found to the list of targets for this qname
+       reverse_records[qname].append(rdata.target)
+
+def check_reverse_by_dns(revname):
+# returns all answers
+    try:
+        answers = dns.resolver.query(revname, 'PTR')
+    except dns.resolver.NXDOMAIN :
+        #      print('ERROR: %s: no PTR' % address)
+        return ""
+    except dns.exception.Timeout :
+        print('ERROR: %s: DNS Timeout' % revname)
+        return ""
+    except Exception as exception:
+        print('ERROR: %s: UNKNOWN resolver error' % revname)
+        print(' exc: %s' % type(exception).__name__ )
+        return ""
+    return answers
+
+
 #check that the address for the FQDN:
 # 1. is a valid IP address
 # 2. has a PTR record
 # 3. the PTR record matches the given FQDN (this may be wrong if there are multiple A/AAAA records)
 # 4. TODO the found FQDN has at least one A/AAAA that matches the original address
 # returns True if valid, False otherwise
-def check_reverse(fqdn, address):
+def check_reverse(fqdn, address, force_query = False):
    # is this a valid IP address?
    if ( (not fqdn) or (not address)):
       print('check_reverse: bad arguments %s %s' % (fqdn, address))
@@ -75,87 +108,107 @@ def check_reverse(fqdn, address):
    except ValueError:
       print('ERROR: %s :invalid IP address' % address)
       return False
+
    revname = dns.reversename.from_address(address)
    if (debug):
-      print('address<%s>, revname %s' % (address, revname))
-      # is there a valid PTR for the address
-   try:
-      answers = dns.resolver.query(revname, 'PTR')
-   except dns.resolver.NXDOMAIN :
-#      print('ERROR: %s: no PTR' % address)
-      return False
-   except dns.exception.Timeout :
-      print('ERROR: %s: Timeout' % address)
-      return False
-   except Exception as exception:
-      print('ERROR: %s: UNKNOWN resolver error' % address)
-      print(' exc: %s' % type(exception).__name__ )
-      return False
-   # at this point there is at least one PTR record
-   for rdata in answers:
-      if (str(rdata) == str(fqdn)):
-##         print('check_reverse: MATCH %s %s %s' % (address, rdata, fqdn))
-         return True # found at least one matching name
-   # or no matches found...
-##   print('check_reverse: NOMATCH %s %s %s' % (address, rdata, fqdn))
-   return False
+      print('address <%s>, revname %s' % (address, revname))
+
+   # first, look and see if we've already loaded a reverse record
+   cached_answer = False
+   for target in reverse_records[revname] :
+       if (debug) :
+           print('check_reverse: cache MATCH %s %s' % (revname, target))
+       cached_answer = True
+
+   if (debug and not cached_answer) :
+       print('check_reverse: cache NOMATCH %s' % (revname))
+   # then (optionally) see if we can find a real PTR record by DNS query
+   if (force_query or not cached_answer) :
+       answers = check_reverse_by_dns(revname)
+       for rdata in answers:
+           if (str(rdata) == str(fqdn)):
+               if (debug) :
+                   print('check_reverse: query MATCH %s %s' % (revname, rdata))
+               return True # found at least one matching name
+       if (debug):
+           print('check_reverse: query NOMATCH %s' % (address))
+       return False
+
+   return cached_answer
 
 
 def main():
-   debug = warning = False
+   trace = debug = warning = doping = force_ptr_lookups = False
 
    if len(sys.argv) < 2:
       print(usage)
       sys.exit()
 
    for arg in sys.argv[1:]:
-      if (arg == '--debug') :
-         debug = True
-      elif (arg == '--warning') :
-         warning = True
-      else :
-         zone_name.append(arg)
+       if (arg == '--debug') :
+           debug = True
+       elif (arg == '--warning') :
+           warning = True
+       elif (arg == '--ping') :
+           doping = True
+       elif (arg == '--force_ptr_lookups') :
+           force_ptr_lookups = True
+       elif (arg == '--trace') :
+           trace = True
+       else :
+           zone_name.append(arg)
 
-   if (debug):
+   if (trace) :
       print('debug %s, warning %s, zone_name(s) %s' % (debug, warning, zone_name))
 
     # go read all the zones via AXFR or zone file, depending on the argument
    for zone in zone_name :
-      print('loading %s ...' % zone)
-      if (zone.endswith('.zone')):
-         origin = strip_end(zone, '.zone')
-         z = dns.zone.from_file(zone, origin, relativize=False)
+      print('loading %s ...' % zone, end="")
+      if (zone.endswith(zone_suffix)) :
+          origin = strip_end(zone, zone_suffix)
+          z = dns.zone.from_file(zone, origin, relativize = False)
+      elif (zone.endswith(revzone_suffix)) :
+          origin = strip_end(zone, revzone_suffix)
+          z = dns.zone.from_file(zone, origin, relativize=False)
       else:
-         try:
-            z = dns.zone.from_xfr(dns.query.xfr('ns1-int.scea.com', zone), relativize=False)
-         except dns.exception.FormError :
-            print('dns.exception.FormError: No answer or RRset not for qname')
-            continue
+          try:
+              z = dns.zone.from_xfr(dns.query.xfr('ns1-int.scea.com', zone), relativize=False)
+          except dns.exception.FormError :
+              print('dns.exception.FormError: No answer or RRset not for qname')
+              continue
+         # some domains have the "wrong records" included
+         # this can be a forward domain that has PTR records (which will never be referenced)
+         # or reverse zones that contain PTR records
+         # for now, just load all the records we find, no matter what the type
+         # TODO - report wrong type of records in fwd/rev zones
       load_forward_records(z, 'A')
       load_forward_records(z, 'AAAA')
+      load_reverse_records(z, 'PTR')
+      print('done.')
 
    # walk all the forward records and do the following tests
    # 1. has a matching PTR
-   # 2. is pingable
+   # 2. is pingable (if requested)
    for fqdn in forward_records.keys():
-      if (debug):
+      if (trace):
          print('forward <%s> address ' % fqdn, end="")
-         addr_count = len(forward_records[fqdn])
+      addr_count = len(forward_records[fqdn])
       for addr in forward_records[fqdn] :
          # addr is an IPV4Address, is easier to check as a string
 
-         if (check_reverse(fqdn, str(addr))):
+         if (check_reverse(fqdn, str(addr), force_ptr_lookups)) :
             # found at least one valid PTR that points to this name
             pass
 #            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
          else:
             print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
 
-         if (ping(str(fqdn))):
-             pass
+         if (doping):
+             if (ping(str(fqdn))):
+                 pass
 ##            print('PING: host %s %s responds to ping' % (fqdn, addr))
-         else:
-            print('NOPING: host %s %s no repsonse to ping' % (fqdn, addr))
+             else:
+                 print('NOPING: host %s %s no repsonse to ping' % (fqdn, addr))
 
          if (debug):
             print('%s' % addr, end="")
@@ -165,7 +218,45 @@ def main():
             else:
                print(', ', end="")
 
+   # walk all the reverse record and do the following tests
+   # 1. we have at least one matching forward record
+   for reverse in reverse_records.keys():
+      if (debug):
+         print('query <%s> target(s) ' % reverse, end="")
+         reverse_count = len(reverse_records[reverse])
+      for record in reverse_records[reverse] :
+          try:
+              check_reverse(record, dns.reversename.to_address(reverse), force_query = force_ptr_lookups)
+          except dns.exception.SyntaxError :
+              print('ERROR: Syntax error in PTR record <%s>' % reverse)
+              continue
+          if (debug):
+              print('%s' % record, end="")
+              reverse_count-= 1
+              if (reverse_count < 1):
+                  print()
+              else:
+                  print(', ', end="")
 
+
+
+   sys.exit()
+
+"""                             
+   if (check_reverse(fqdn, str(addr))):
+            # found at least one valid PTR that points to this name
+            pass
+#            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
+         else:
+            print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
+
+         if (doping):
+             if (ping(str(fqdn))):
+                 pass
+##            print('PING: host %s %s responds to ping' % (fqdn, addr))
+             else:
+                 print('NOPING: host %s %s no repsonse to ping' % (fqdn, addr))
+"""
 
 if __name__ == '__main__' :
    main()
