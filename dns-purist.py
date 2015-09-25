@@ -25,10 +25,16 @@ def ping(host):
     import os, platform
 
     # Ping parameters as function of OS
-    ping_str = "-n 1" if  platform.system().lower()=="windows" else "-c 1"
+    p = platform.system().lower()
+    if (p =="windows") :
+        ping_str = "-n 1"
+        redirect = ''
+    else:
+        ping_str = "-c 1"
+        redirect = ' >/dev/null'
 
     # Ping
-    return os.system("ping " + ping_str + " " + host) == 0
+    return os.system("ping " + ping_str + " " + host + " " + redirect) == 0
 
 def strip_end(text, suffix):
     if not text.endswith(suffix):
@@ -56,7 +62,7 @@ def load_forward_records(zone, record_type):
 #check that the address for the FQDN:
 # 1. is a valid IP address
 # 2. has a PTR record
-# 3. the PTR record matches the given FQDN (this may be wrong)
+# 3. the PTR record matches the given FQDN (this may be wrong if there are multiple A/AAAA records)
 # 4. TODO the found FQDN has at least one A/AAAA that matches the original address
 # returns True if valid, False otherwise
 def check_reverse(fqdn, address):
@@ -137,16 +143,20 @@ def main():
          addr_count = len(forward_records[fqdn])
       for addr in forward_records[fqdn] :
          # addr is an IPV4Address, is easier to check as a string
+
          if (check_reverse(fqdn, str(addr))):
             # found at least one valid PTR that points to this name
             pass
 #            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
          else:
             print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
+
          if (ping(str(fqdn))):
-            print('PING: host %s %s responds to ping' % (fqdn, addr))
+             pass
+##            print('PING: host %s %s responds to ping' % (fqdn, addr))
          else:
             print('NOPING: host %s %s no repsonse to ping' % (fqdn, addr))
+
          if (debug):
             print('%s' % addr, end="")
             addr_count-= 1
