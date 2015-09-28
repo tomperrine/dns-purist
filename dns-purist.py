@@ -51,6 +51,7 @@ def strip_end(text, suffix):
 def load_forward_records(zone, record_type, zone_type):
     global debug, trace, no_dns, warning, doping, force_ptr_lookups
 ## modifies global forward_records[] !!!
+    record_count = 0
     if ( (record_type != 'A') and (record_type != 'AAAA')):
         print('load_forward_records: invalid record type %s' % record_type)
         sys.exit()
@@ -72,11 +73,14 @@ def load_forward_records(zone, record_type, zone_type):
             print ('fqdn %s IP %s' % (fqdn, str(addr)))
         # append the address we just found to the list of addresses for this FQDN
         forward_records[fqdn].append(addr)
+        record_count += 1
+    return record_count
 
 
 def load_reverse_records(zone, record_type, zone_type):
-## modifies global reverse_records[] !!!
     global debug, trace, no_dns, warning, doping, force_ptr_lookups
+## modifies global reverse_records  
+    record_count = 0
     if (record_type != 'PTR'):
       print('load_reverse_records: invalid record type %s' % record_type)
       sys.exit()
@@ -90,6 +94,8 @@ def load_reverse_records(zone, record_type, zone_type):
             continue
        # append the target we just found to the list of targets for this qname
         reverse_records[qname].append(rdata.target)
+        record_count += 1
+    return record_count
 
 def check_reverse_by_dns(revname):
 # returns all answers
@@ -223,9 +229,13 @@ def main():
           # or reverse zones that contain PTR records
           # for now, just load all the records we find, no matter what the type
           # TODO - report wrong type of records in fwd/rev zones
-       load_forward_records(z, 'A', zone_type)
-       load_forward_records(z, 'AAAA', zone_type)
-       load_reverse_records(z, 'PTR', zone_type)
+       forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
+       forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
+       reverse_Ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
+       print('%d A records, %d AAAA records, %d PTR records loaded (%d total)' %
+             (forward_A_records_loaded, forward_AAAA_records_loaded, reverse_Ptr_records_loaded,
+              (forward_A_records_loaded + forward_AAAA_records_loaded + reverse_Ptr_records_loaded)),
+             end ="")
        print('done.')
 
     # walk all the forward records and do the following tests
