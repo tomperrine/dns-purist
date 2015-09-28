@@ -25,15 +25,31 @@ reverse_records = collections.defaultdict(list)
 
 usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--ping] [--no_dns] [--force_ptr_lookups] targetzone, zonefile.zone, zonefile.revzone'
 
-def ping(host):
+def ping(address):
     """
-    Returns True if host responds to a ping request
+    Returns True if host (defined by address) responds to a ping request
     """
     import os, platform
+
+    # Is it v4 or v6? Set initial guess for ping command here
+    try:
+        addr_obj = ipaddress.ip_address(address)
+    except ValueError:
+        print('ERROR: %s :invalid IP address' % address)
+        return False
+    if (addr_obj.version == 4):
+        ping_command = 'ping'
+    elif (addr_obj == 6):
+        ping_command = 'ping6'
+    else:
+        print('ERROR: %s :invalid IP address version' % addr_obj.version)
+        return False
 
     # Ping parameters as function of OS
     p = platform.system().lower()
     if (p =="windows") :
+        ping_command = 'ping' #uses same command for v4 and v6, but
+        # TODO Does Windows need a -6 or -4 argument if given an address???
         ping_str = "-n 1"
         redirect = ''
     else:
@@ -41,7 +57,8 @@ def ping(host):
         redirect = ' >/dev/null'
 
     # Ping
-    return os.system("ping " + ping_str + " " + host + " " + redirect) == 0
+    return (os.system("ping " + ping_str + " " + address + " " + redirect) == 0)
+
 
 def strip_end(text, suffix):
     if not text.endswith(suffix):
@@ -68,7 +85,10 @@ def load_forward_records(zone, record_type, zone_type):
             print()
             print('BADREC: forward record %s/%s found in reverse zone' % (fqdn,rdata.address))
             continue
+        ## TODO check for fully-qualified names that don't match the zone name??
+        ## Is this even possible with "no relativize"??
         addr = ipaddress.ip_address(rdata.address)
+
         if (debug):
             print ('fqdn %s IP %s' % (fqdn, str(addr)))
         # append the address we just found to the list of addresses for this FQDN
@@ -227,8 +247,7 @@ def main():
           # some domains have the "wrong records" included
           # this can be a forward domain that has PTR records (which will never be referenced)
           # or reverse zones that contain PTR records
-          # for now, just load all the records we find, no matter what the type
-          # TODO - report wrong type of records in fwd/rev zones
+          # this is handleded in the zone loaders, based on the passed zone type
        forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
        forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
        reverse_Ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
@@ -256,11 +275,10 @@ def main():
              print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
 
           if (doping):
-              if (ping(str(fqdn))):
-                  pass
-  ##            print('PING: host %s %s responds to ping' % (fqdn, addr))
+              if (ping(str(addr))):
+                  print('PING: host %s %s responds to ping' % (fqdn, addr))
               else:
-                  print('NOPING: host %s %s no repsonse to ping' % (fqdn, addr))
+                  print('NOPING: host %s %s no response to ping' % (fqdn, addr))
 
           if (debug):
              print('%s' % addr, end="")
