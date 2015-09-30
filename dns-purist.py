@@ -120,8 +120,9 @@ def load_reverse_records(zone, record_type, zone_type):
 def check_reverse_by_dns(revname):
 # returns all answers
     global debug, trace, no_dns, warning, doping, force_ptr_lookups
+
     if (trace):
-        print('check_reverse_by_dns')
+        print('check_reverse_by_dns %s' % revname)
     try:
         answers = dns.resolver.query(revname, 'PTR')
     except dns.resolver.NXDOMAIN :
@@ -186,10 +187,15 @@ def check_reverse(fqdn, address, force_query):
                 if (debug) :
                     print('check_reverse: query MATCH %s %s' % (revname, rdata))
                 return True # found at least one matching name
+            else :
+                if (debug) :
+                    print('check_reverse: unmatched PTR %s %s' % (revname, rdata))
+                return True # found at least one PTR record
         if (debug):
             print('check_reverse: query NOMATCH %s' % (address))
+            debug = False ##
         return False
-
+    debug = False
     return cached_answer
 
 
