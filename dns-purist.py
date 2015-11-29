@@ -69,9 +69,13 @@ def strip_end(text, suffix):
 
 def load_forward_records(zone, record_type, zone_type):
     global debug, trace, no_dns, warning, doping, force_ptr_lookups
-## for the given zone, load all A and AAAA records into the global dictionaly
+## for the given zone, load all records of the requested type (A or AAAA) into the global dictionary
 ## modifies global forward_records[] !!!
+## as this will be called for ALL zones being loaded, we can also check for forward
+## records that might be in a reverse zone
     record_count = 0
+    # make sure we aren't trying to load non A or AAAA records into the forward dictionary
+    # (parameter error)
     if ( (record_type != 'A') and (record_type != 'AAAA')):
         print('load_forward_records: invalid record type %s' % record_type)
         sys.exit()
@@ -83,13 +87,12 @@ def load_forward_records(zone, record_type, zone_type):
             continue
         if (debug):
             print ('fqdn <%s> zone <%s>' % (fqdn, zone))
-      # should not see any non-forward records, emit warning
+      # if we're scanning a reverse zone, the we should not see any non-forward records, emit warning
         if (zone_type != 'forward'):
             print()
             print('BADREC: non-forward record %s/%s found in forward zone' % (fqdn,rdata.address))
             continue
-        ## TODO check for fully-qualified names that don't match the zone name??
-        ## Is this even possible with "no relativize"??
+
         addr = ipaddress.ip_address(rdata.address)
 
         if (debug):
@@ -102,19 +105,33 @@ def load_forward_records(zone, record_type, zone_type):
 
 def load_reverse_records(zone, record_type, zone_type):
     global debug, trace, no_dns, warning, doping, force_ptr_lookups
-## modifies global reverse_records  
+## for the given zone, load all records of the requested type (PTR) into the global dictionary
+## modifies global reverse_records[] !!!
+## as this will be called for ALL zones being loaded, we can also check for reverse
+## records that might be in a forward zone
     record_count = 0
+    #make sure we aren't trying to load non-PTR records into the reverse dictionary
+    #which would be a parameter error
     if (record_type != 'PTR'):
       print('load_reverse_records: invalid record type %s' % record_type)
       sys.exit()
     for (qname, ttl, rdata) in zone.iterate_rdatas(record_type):
         # this is already a full address since we used relativize=False
+
+
+
+
         if (debug):
             print ('load_reverse_records: qname %s target %s' % (qname, str(rdata.target)))
+        # if we're loading from a non reverse zone, then any PTR records we find are an error
         if (zone_type != 'reverse'):
             print()
             print('BADREC: reverse record %s/%s found in forward zone' % (qname,rdata.target))
             continue
+
+
+
+
        # append the target we just found to the list of targets for this qname
         reverse_records[qname].append(rdata.target)
         record_count += 1
