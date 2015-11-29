@@ -15,6 +15,7 @@ dns_server = 'ns1-int.scea.com'
 zone_suffix = '.zone'
 revzone_suffix = '.revzone'
 
+
 zone_name = []
 
 # a dict of lists of all the forward (A, AAAA) records
@@ -195,10 +196,41 @@ def check_reverse(fqdn, address, force_query):
                 return True # found at least one PTR record
         if (debug):
             print('check_reverse: query NOMATCH %s' % (address))
-            debug = False ##
         return False
-    debug = False
     return cached_answer
+
+def check_all_forwards() :
+# walk all the forward records and do the following tests
+# 1. has at least one matching PTR
+# 2. is pingable (if requested)
+    for fqdn in forward_records.keys():
+       if (trace):
+          print('forward <%s> address ' % fqdn, end="")
+       addr_count = len(forward_records[fqdn])
+       for addr in forward_records[fqdn] :
+          # addr is an IPV4Address, is easier to check as a string
+
+          if (check_reverse(fqdn, str(addr), force_ptr_lookups)) :
+             # found at least one valid PTR that points to this name
+             pass
+  #            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
+          else:
+             print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
+
+          if (doping):
+              if (ping(str(addr))):
+                  print('PING: host %s %s responds to ping' % (fqdn, addr))
+              else:
+                  print('NOPING: host %s %s no response to ping' % (fqdn, addr))
+
+          if (debug):
+             print('%s' % addr, end="")
+             addr_count-= 1
+             if (addr_count < 1):
+                print()
+             else:
+                print(', ', end="")
+
 
 
 def main():
@@ -249,16 +281,18 @@ def main():
            zone_type = 'reverse'
        else:
            try:
-               z = dns.zone.from_xfr(dns.query.xfr('ns1-int.scea.com', zone), relativize=False)
-## FIXME - can determine whether forward or not by checking the zone name after we fetch it?
-## does it end in in-addr.arpa or ip6.arpa? How about just ending in .arpa?
+               z = dns.zone.from_xfr(dns.query.xfr(dns_server, zone), relativize=False)
            except dns.exception.FormError :
                print('dns.exception.FormError: No answer or RRset not for qname')
                continue
-          # some domains have the "wrong records" included
-          # this can be a forward domain that has PTR records (which will never be referenced)
-          # or reverse zones that contain non-PTR records
-          # this is handleded in the zone loaders, based on the passed zone type
+## FIXME - can determine whether forward or not by checking the zone name after we fetch it
+           if zone.endswith("ip6.arpa") or zone.endswith("in-addr.arpa") :
+               zone_type = 'reverse'
+           else :
+               zone_type = 'forward'
+
+       # in order to properly process all types of records, we have to
+       # make multiple passes, one for each record type
        forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
        forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
        reverse_Ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
@@ -268,36 +302,8 @@ def main():
              end ="")
        print('done.')
 
-    # walk all the forward records and do the following tests
-    # 1. has a matching PTR
-    # 2. is pingable (if requested)
-    for fqdn in forward_records.keys():
-       if (trace):
-          print('forward <%s> address ' % fqdn, end="")
-       addr_count = len(forward_records[fqdn])
-       for addr in forward_records[fqdn] :
-          # addr is an IPV4Address, is easier to check as a string
-
-          if (check_reverse(fqdn, str(addr), force_ptr_lookups)) :
-             # found at least one valid PTR that points to this name
-             pass
-  #            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
-          else:
-             print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
-
-          if (doping):
-              if (ping(str(addr))):
-                  print('PING: host %s %s responds to ping' % (fqdn, addr))
-              else:
-                  print('NOPING: host %s %s no response to ping' % (fqdn, addr))
-
-          if (debug):
-             print('%s' % addr, end="")
-             addr_count-= 1
-             if (addr_count < 1):
-                print()
-             else:
-                print(', ', end="")
+       # do all the forward record tests
+       check_all_forwards()
 
     # walk all the reverse record and do the following tests
     # 1. we have at least one matching forward record
