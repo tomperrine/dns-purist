@@ -61,12 +61,14 @@ def ping(address):
 
 
 def strip_end(text, suffix):
+# strip the suffix from the string, if present
     if not text.endswith(suffix):
         return text
     return text[:len(text)-len(suffix)]
 
 def load_forward_records(zone, record_type, zone_type):
     global debug, trace, no_dns, warning, doping, force_ptr_lookups
+## for the given zone, load all A and AAAA records into the global dictionaly
 ## modifies global forward_records[] !!!
     record_count = 0
     if ( (record_type != 'A') and (record_type != 'AAAA')):
@@ -80,10 +82,10 @@ def load_forward_records(zone, record_type, zone_type):
             continue
         if (debug):
             print ('fqdn <%s> zone <%s>' % (fqdn, zone))
-      # should not see any forward records, emit warning
+      # should not see any non-forward records, emit warning
         if (zone_type != 'forward'):
             print()
-            print('BADREC: forward record %s/%s found in reverse zone' % (fqdn,rdata.address))
+            print('BADREC: non-forward record %s/%s found in forward zone' % (fqdn,rdata.address))
             continue
         ## TODO check for fully-qualified names that don't match the zone name??
         ## Is this even possible with "no relativize"??
@@ -233,6 +235,7 @@ def main():
     if (force_ptr_lookups and no_dns):
         print('dueling DNS options')
         sys.exit()
+
      # go read all the zones via AXFR or zone file, depending on the argument
     for zone in zone_name :
        print('loading %s ...' % zone, end="")
@@ -247,12 +250,14 @@ def main():
        else:
            try:
                z = dns.zone.from_xfr(dns.query.xfr('ns1-int.scea.com', zone), relativize=False)
+## FIXME - can determine whether forward or not by checking the zone name after we fetch it?
+## does it end in in-addr.arpa or ip6.arpa? How about just ending in .arpa?
            except dns.exception.FormError :
                print('dns.exception.FormError: No answer or RRset not for qname')
                continue
           # some domains have the "wrong records" included
           # this can be a forward domain that has PTR records (which will never be referenced)
-          # or reverse zones that contain PTR records
+          # or reverse zones that contain non-PTR records
           # this is handleded in the zone loaders, based on the passed zone type
        forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
        forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
