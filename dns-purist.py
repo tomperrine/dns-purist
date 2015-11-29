@@ -90,7 +90,7 @@ def load_forward_records(zone, record_type, zone_type):
       # if we're scanning a reverse zone, the we should not see any non-forward records, emit warning
         if (zone_type != 'forward'):
             print()
-            print('BADREC: non-forward record %s/%s found in forward zone' % (fqdn,rdata.address))
+            print('BADREC: forward record %s/%s found in reverse zone' % (fqdn,rdata.address))
             continue
 
         addr = ipaddress.ip_address(rdata.address)
