@@ -15,6 +15,7 @@ dns_server = 'ns1-int.scea.com'
 zone_suffix = '.zone'
 revzone_suffix = '.revzone'
 
+
 zone_name = []
 
 # a dict of lists of all the forward (A, AAAA) records
@@ -61,14 +62,20 @@ def ping(address):
 
 
 def strip_end(text, suffix):
+# strip the suffix from the string, if present
     if not text.endswith(suffix):
         return text
     return text[:len(text)-len(suffix)]
 
 def load_forward_records(zone, record_type, zone_type):
     global debug, trace, no_dns, warning, doping, force_ptr_lookups
+## for the given zone, load all records of the requested type (A or AAAA) into the global dictionary
 ## modifies global forward_records[] !!!
+## as this will be called for ALL zones being loaded, we can also check for forward
+## records that might be in a reverse zone
     record_count = 0
+    # make sure we aren't trying to load non A or AAAA records into the forward dictionary
+    # (parameter error)
     if ( (record_type != 'A') and (record_type != 'AAAA')):
         print('load_forward_records: invalid record type %s' % record_type)
         sys.exit()
@@ -85,8 +92,7 @@ def load_forward_records(zone, record_type, zone_type):
             print()
             print('BADREC: forward record %s/%s found in reverse zone' % (fqdn,rdata.address))
             continue
-        ## TODO check for fully-qualified names that don't match the zone name??
-        ## Is this even possible with "no relativize"??
+
         addr = ipaddress.ip_address(rdata.address)
 
         if (debug):
@@ -99,13 +105,22 @@ def load_forward_records(zone, record_type, zone_type):
 
 def load_reverse_records(zone, record_type, zone_type):
     global debug, trace, no_dns, warning, doping, force_ptr_lookups
-## modifies global reverse_records  
+## for the given zone, load all records of the requested type (PTR) into the global dictionary
+## modifies global reverse_records[] !!!
+## as this will be called for ALL zones being loaded, we can also check for reverse
+## records that might be in a forward zone
     record_count = 0
+    #make sure we aren't trying to load non-PTR records into the reverse dictionary
+    #which would be a parameter error
     if (record_type != 'PTR'):
       print('load_reverse_records: invalid record type %s' % record_type)
       sys.exit()
     for (qname, ttl, rdata) in zone.iterate_rdatas(record_type):
         # this is already a full address since we used relativize=False
+
+
+
+
         if (debug):
             print ('load_reverse_records: qname %s target %s' % (qname, str(rdata.target)))
         # if the zone type isn't a reverse zone, then we shouldn't see any PTR records
@@ -113,6 +128,10 @@ def load_reverse_records(zone, record_type, zone_type):
             print()
             print('BADREC: reverse record %s/%s found in forward zone' % (qname,rdata.target))
             continue
+
+
+
+
        # append the target we just found to the list of targets for this qname
         reverse_records[qname].append(rdata.target)
         record_count += 1
@@ -194,10 +213,41 @@ def check_reverse(fqdn, address, force_query):
                 return True # found at least one PTR record
         if (debug):
             print('check_reverse: query NOMATCH %s' % (address))
-            debug = False ##
         return False
-    debug = False
     return cached_answer
+
+def check_all_forwards() :
+# walk all the forward records and do the following tests
+# 1. has at least one matching PTR
+# 2. is pingable (if requested)
+    for fqdn in forward_records.keys():
+       if (trace):
+          print('forward <%s> address ' % fqdn, end="")
+       addr_count = len(forward_records[fqdn])
+       for addr in forward_records[fqdn] :
+          # addr is an IPV4Address, is easier to check as a string
+
+          if (check_reverse(fqdn, str(addr), force_ptr_lookups)) :
+             # found at least one valid PTR that points to this name
+             pass
+  #            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
+          else:
+             print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
+
+          if (doping):
+              if (ping(str(addr))):
+                  print('PING: host %s %s responds to ping' % (fqdn, addr))
+              else:
+                  print('NOPING: host %s %s no response to ping' % (fqdn, addr))
+
+          if (debug):
+             print('%s' % addr, end="")
+             addr_count-= 1
+             if (addr_count < 1):
+                print()
+             else:
+                print(', ', end="")
+
 
 
 def main():
@@ -249,14 +299,18 @@ def main():
            zone_type = 'reverse'
        else:
            try:
-               z = dns.zone.from_xfr(dns.query.xfr('ns1-int.scea.com', zone), relativize=False)
+               z = dns.zone.from_xfr(dns.query.xfr(dns_server, zone), relativize=False)
            except dns.exception.FormError :
                print('dns.exception.FormError: No answer or RRset not for qname')
                continue
-          # some domains have the "wrong records" included
-          # this can be a forward domain that has PTR records (which will never be referenced)
-          # or reverse zones that contain PTR records
-          # this is handleded in the zone loaders, based on the passed zone type
+## FIXME - can determine whether forward or not by checking the zone name after we fetch it
+           if zone.endswith("ip6.arpa") or zone.endswith("in-addr.arpa") :
+               zone_type = 'reverse'
+           else :
+               zone_type = 'forward'
+
+       # in order to properly process all types of records, we have to
+       # make multiple passes, one for each record type
        forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
        forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
        reverse_Ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
@@ -266,36 +320,8 @@ def main():
              end ="")
        print('done.')
 
-    # walk all the forward records and do the following tests
-    # 1. has a matching PTR
-    # 2. is pingable (if requested)
-    for fqdn in forward_records.keys():
-       if (trace):
-          print('forward <%s> address ' % fqdn, end="")
-       addr_count = len(forward_records[fqdn])
-       for addr in forward_records[fqdn] :
-          # addr is an IPV4Address, is easier to check as a string
-
-          if (check_reverse(fqdn, str(addr), force_ptr_lookups)) :
-             # found at least one valid PTR that points to this name
-             pass
-  #            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
-          else:
-             print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
-
-          if (doping):
-              if (ping(str(addr))):
-                  print('PING: host %s %s responds to ping' % (fqdn, addr))
-              else:
-                  print('NOPING: host %s %s no response to ping' % (fqdn, addr))
-
-          if (debug):
-             print('%s' % addr, end="")
-             addr_count-= 1
-             if (addr_count < 1):
-                print()
-             else:
-                print(', ', end="")
+       # do all the forward record tests
+       check_all_forwards()
 
     # walk all the reverse record and do the following tests
     # 1. we have at least one matching forward record
