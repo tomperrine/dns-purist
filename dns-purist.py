@@ -80,7 +80,7 @@ def load_forward_records(zone, record_type, zone_type):
             continue
         if (debug):
             print ('fqdn <%s> zone <%s>' % (fqdn, zone))
-      # should not see any forward records, emit warning
+      # if the zone type isn't a forward zone, then we should not see any forward records, emit warning
         if (zone_type != 'forward'):
             print()
             print('BADREC: forward record %s/%s found in reverse zone' % (fqdn,rdata.address))
@@ -108,6 +108,7 @@ def load_reverse_records(zone, record_type, zone_type):
         # this is already a full address since we used relativize=False
         if (debug):
             print ('load_reverse_records: qname %s target %s' % (qname, str(rdata.target)))
+        # if the zone type isn't a reverse zone, then we shouldn't see any PTR records
         if (zone_type != 'reverse'):
             print()
             print('BADREC: reverse record %s/%s found in forward zone' % (qname,rdata.target))
@@ -233,7 +234,9 @@ def main():
     if (force_ptr_lookups and no_dns):
         print('dueling DNS options')
         sys.exit()
-     # go read all the zones via AXFR or zone file, depending on the argument
+
+    # go read all the zones via AXFR or zone file, depending on the argument
+    # and process each zone 3 times, once for A records, once for AAAA and once for PTR
     for zone in zone_name :
        print('loading %s ...' % zone, end="")
        if (zone.endswith(zone_suffix)) :
