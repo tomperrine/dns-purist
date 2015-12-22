@@ -26,39 +26,6 @@ reverse_records = collections.defaultdict(list)
 
 usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--ping] [--no_dns] [--arg_allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
 
-def ping(address):
-    """
-    Returns True if host (defined by address) responds to a ping request
-    """
-    import os, platform
-
-    # Is it v4 or v6? Set initial guess for ping command here
-    try:
-        addr_obj = ipaddress.ip_address(address)
-    except ValueError:
-        print('ERROR: %s :invalid IP address' % address)
-        return False
-    if (addr_obj.version == 4):
-        ping_command = 'ping'
-    elif (addr_obj == 6):
-        ping_command = 'ping6'
-    else:
-        print('ERROR: %s :invalid IP address version' % addr_obj.version)
-        return False
-
-    # Ping parameters as function of OS
-    p = platform.system().lower()
-    if (p =="windows") :
-        ping_command = 'ping' #uses same command for v4 and v6, but
-        # TODO Does Windows need a -6 or -4 argument if given an address???
-        ping_str = "-n 1"
-        redirect = ''
-    else:
-        ping_str = "-c 1 -o -n "  #MacOS, 1 packet, only wait for one packet, no DNS lookup
-        redirect = ' >/dev/null'
-
-    # Ping
-    return (os.system("ping " + ping_str + " " + address + " " + redirect) == 0)
 
 
 def strip_end(text, suffix):
@@ -69,31 +36,6 @@ def strip_end(text, suffix):
 
 
 
-def ping_all_reverses() :
-## ping all the addresses from the reverse zones that have been loaded
-    for reverse in reverse_records.keys():
-        # these are in .in-addr.arpa and   format
-        addr = dns.reversename.to_address(reverse)
-        if (debug):
-            print('ping <%s> target' % addr)
-        if (ping(str(addr))):
-            print('PING: host %s responds to ping' % (addr))
-        else:
-            print('NOPING: host %s no response to ping' % (addr))
-
-
-def ping_all_the_things():
-## try at least a ping to everything, keeping track of things that didn't answer
-## so we don't try any device more than once
-
-    # do the reverses first, since no DNS lookups needed
-    # this will also load the cache of things that didn't answer
-    ping_all_reverses()
-
-    # now the forwards
-    # should I have kept the results of the DNS lookups for the forward records
-    # from the check_all_forwards() ?
-##    ping_all_forwards()
 
 
 def load_forward_records(zone, record_type, zone_type):
@@ -359,30 +301,22 @@ def main():
 
     # now that we have all the data loaded...
     # do all the forward record tests
-##    check_all_forwards()
+    check_all_forwards()
     # do all the reverse record tests
-##    check_all_reverses()
-    ###TODO 
+    check_all_reverses()
+
     # check ping if requested
-    ping_all_the_things()
+    #FIXME thisis wrong
+    # should be building a target list of names and IP addresses to
+    # hand to nmap and let it ping in parallel
+    # can also run nmap from a different place than the DNS queries
+
+
+    if (doping) :
+        ping_all_the_things()
 
     sys.exit()
 
-"""                             
-   if (find_reverse_from_forward(fqdn, str(addr))):
-            # found at least one valid PTR that points to this name
-            pass
-#            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
-         else:
-            print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
-
-         if (doping):
-             if (ping(str(fqdn))):
-                 pass
-##            print('PING: host %s %s responds to ping' % (fqdn, addr))
-             else:
-                 print('NOPING: host %s %s no repsonse to ping' % (fqdn, addr))
-"""
 
 if __name__ == '__main__' :
    main()
