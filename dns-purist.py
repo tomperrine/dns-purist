@@ -1,5 +1,4 @@
 #!/usr/local/bin/python3
-
 import sys, collections
 import pprint
 import ipaddress
@@ -24,7 +23,7 @@ forward_records = collections.defaultdict(list)
 reverse_records = collections.defaultdict(list)
 
 
-usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--ping] [--no_dns] [--arg_allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
+usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--build_target-list] [--no_dns] [--arg_allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
 
 
 
@@ -39,7 +38,7 @@ def strip_end(text, suffix):
 
 
 def load_forward_records(zone, record_type, zone_type):
-    global debug, trace, no_dns, warning, doping, arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
 ## for the given zone, load all records of the requested type (A or AAAA) into the global dictionary
 ## modifies global forward_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for forward
@@ -75,7 +74,7 @@ def load_forward_records(zone, record_type, zone_type):
 
 
 def load_reverse_records(zone, record_type, zone_type):
-    global debug, trace, no_dns, warning, doping, arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
 ## for the given zone, load all records of the requested type (PTR) into the global dictionary
 ## modifies global reverse_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for reverse
@@ -102,7 +101,7 @@ def load_reverse_records(zone, record_type, zone_type):
 
 def find_reverse_from_forward_by_dns(revname):
 # returns all answers
-    global debug, trace, no_dns, warning, doping, arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
 
     if (trace):
         print('find_reverse_from_forward_by_dns %s' % revname)
@@ -127,7 +126,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
 # 2. ensure that the address has a PTR record that matches the FQDN (check the DB, optionally do a DNS call based on allow_dns_query)
 # ignore any extra PTR records that may match other FQDNs. they will be checked during some other call on some other FQDN
 # returns True if a MATCH is found, False otherwise even if there are SOME PTRs for the address
-    global debug, trace, no_dns, warning, doping, arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
 
     if (trace):
         print('find_reverse_from_forward: %s %s %s' % (fqdn, address, allow_dns_query))
@@ -228,10 +227,33 @@ def check_all_reverses() :
                 print('ERROR: Syntax error in PTR record <%s>' % reverse)
                 continue
 
+def dump_all_forwards():
+# print all the forward record ADDRESSES to STDOUT
+# to provide a target list file for input into nmap
+# want to use IPs for the target list, instead of names to avoid
+# DNS queries in nmap
+    for fqdn in forward_records.keys():
+        for addr in forward_records[fqdn] :
+            print('%s' % (addr))
+
+def dump_all_reverses():
+# print all the PTR record ADDRESSES to STDOUT
+    for reverse in reverse_records.keys():
+        print('%s' % dns.reversename.to_address(reverse))
+
+def dump_targets_to_file():
+# dump all the IPs and hostnames to file
+# this can be sort -u'ed later if needed
+# intent is to make a target list file for nmap so that it can ping in parallel
+#FIXME - should have a file option, for now just print to STDOUT
+    dump_all_forwards()
+    dump_all_reverses()
+
 
 def main():
-    global debug, trace, no_dns, warning, doping, arg_allow_dns_lookups
-    trace = debug = warning = doping = arg_allow_dns_lookups = False
+    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
+    make_list_for_nmap = False
+    trace = debug = warning = arg_allow_dns_lookups = False
 
     if len(sys.argv) < 2:
         print(usage)
@@ -246,8 +268,8 @@ def main():
             no_dns = True
         elif (arg == '--warning') :
             warning = True
-        elif (arg == '--ping') :
-            doping = True
+        elif (arg == '--build_target_list') :
+            make_list_for_nmap = True
         elif (arg == '--allow_dns_lookups') :
             arg_allow_dns_lookups = True
         else :
@@ -266,6 +288,7 @@ def main():
 
     # go read all the zones via AXFR or zone file, depending on the argument
     # and process each zone 3 times, once for A records, once for AAAA and once for PTR
+        ## FIXME - handle CNAME records in some fashion, which is different from A, AAAA
     for zone in zone_name :
        print('loading %s ... ' % zone)
        if (zone.endswith(zone_suffix)) :
@@ -301,19 +324,17 @@ def main():
 
     # now that we have all the data loaded...
     # do all the forward record tests
-    check_all_forwards()
+####    check_all_forwards()
     # do all the reverse record tests
-    check_all_reverses()
+####    check_all_reverses()
 
-    # check ping if requested
-    #FIXME thisis wrong
-    # should be building a target list of names and IP addresses to
+    # if requested, build a target list of names and IP addresses to
     # hand to nmap and let it ping in parallel
     # can also run nmap from a different place than the DNS queries
+    if (make_list_for_nmap):
+        # for now, only option is to dump to STDOUT
+        dump_targets_to_file()
 
-
-    if (doping) :
-        ping_all_the_things()
 
     sys.exit()
 
