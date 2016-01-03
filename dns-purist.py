@@ -35,8 +35,13 @@ def strip_end(text, suffix):
         return text
     return text[:len(text)-len(suffix)]
 
-
-
+def is_valid_ip(addr):
+    # is this a syntactically valid IP address string
+    try:
+        isitanaddr = ipaddress.ip_address(addr)
+    except ValueError:
+        return False
+    return True
 
 
 def load_forward_records(zone, record_type, zone_type):
@@ -122,7 +127,7 @@ def load_cname_records(zone, record_type, zone_type):
             print()
             print('BADREC: CNAME record %s/%s found in non-forward zone' % (qname,rdata.target))
             continue
-       # append the target we just found to the list of targets for this qname
+        # append the target we just found to the list of targets for this qname
         cname_records[qname].append(rdata.target)
         record_count += 1
     return record_count
@@ -166,9 +171,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
     if ( (not fqdn) or (not address)):
         print('find_reverse_from_forward: bad arguments %s %s' % (fqdn, address))
         sys.exit()
-    try:
-        isitanaddr = ipaddress.ip_address(address)
-    except ValueError:
+    if (not is_valid_ip(address)):
         print('ERROR: %s :invalid IP address' % address)
         return False
 
@@ -240,6 +243,7 @@ def check_all_forwards() :
              else:
                 print(', ', end="")
 
+
 def check_all_reverses() :
 # walk all the reverse record and do the following tests
 # 1. we have at least one matching forward record
@@ -257,6 +261,48 @@ def check_all_reverses() :
             except dns.exception.SyntaxError :
                 print('ERROR: Syntax error in PTR record <%s>' % reverse)
                 continue
+
+def check_all_cnames() :
+# walk all the cname records and do the following tests
+# 1. there is not more than one CNAME records for the same name
+# 2. the target of the CNAME is NOT an IP address  TODO - this test is BROKEN
+# 3. the target of the cname resolvable, either in the forward_records dictionary
+#    or optionally resolved via DNS
+    for cname in cname_records.keys():
+        if (debug):
+            print('cname <%s> target(s) ' % cname, end="")
+        addr_count = len(cname_records[cname])
+        # test for multiple CNAMEs
+        if (addr_count > 1):
+            print('CNAME_ERR: multiple CNAMES for %s' % cname)
+        # walk all the CNAMEs for this name, checking them all
+        for rdata in cname_records[cname] :
+            # is the target a valid IP address?
+            # TODO - this is broken - the zones were loaded with relativize=False
+            # TODO -    so this test will never work - need to strip the zone (if present)
+            # TODO -    somewhere around here in order to see if the portion is an IP address
+            if (is_valid_ip(rdata)):
+                print('CNAME_ERR_ADDRESS: CNAME %s -> %s' % (cname, rdata))
+                # no need to check to see if resolvable
+                continue
+            # is the target "resolvable"
+            # was it in a loaded zone?
+            if (forward_records[rdata]):
+                # it's in the cache, we're done and OK
+                if (debug):
+                    print('CNAME_OK: CNAME  %s ->  %s -> %s' % (cname, rdata, forward_records[cname]))
+                continue
+            else :
+                ## should we try to resolve this via DNS query?
+                if (no_dns):
+                    # nope, not going to try DNS, so just error and continue
+                    print('CNAME_BAD_NO_DNS: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
+                else:
+                    ## TODO - do a forward query for the rdate target
+                    ## TODO - for now, just show a message and continue
+                    print('CNAME_BAD_DNS: CNAME  %s ->  %s which does not resolve' % (cname, rdata))
+
+
 
 def dump_all_forwards():
 # print all the forward record ADDRESSES to STDOUT
@@ -346,6 +392,8 @@ def main():
         # make multiple passes over each zone, one pass for each record type
        forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
        forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
+       ## TODO - figure out how to deal with IP addresses as CNAME targets
+       ## TODO - the zones were all loaded with relativize=False, so had the zone name appended if not present
        cnames_loaded = load_cname_records(z, 'CNAME', zone_type)
        reverse_Ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
        print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total)' %
@@ -358,7 +406,7 @@ def main():
     # do all the forward record tests
 ####    check_all_forwards()
     # do all the cname record tests
-    ## check_all_cnames()
+    check_all_cnames()
     # do all the reverse record tests
 ####    check_all_reverses()
 
