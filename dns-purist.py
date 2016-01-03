@@ -324,9 +324,9 @@ def main():
 
     # now that we have all the data loaded...
     # do all the forward record tests
-####    check_all_forwards()
+    check_all_forwards()
     # do all the reverse record tests
-####    check_all_reverses()
+    check_all_reverses()
 
     # if requested, build a target list of names and IP addresses to
     # hand to nmap and let it ping in parallel
