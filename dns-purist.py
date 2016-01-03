@@ -19,6 +19,8 @@ zone_name = []
 
 # a dict of lists of all the forward (A, AAAA) records
 forward_records = collections.defaultdict(list)
+# a dict of lists of all the CNAME records
+cname_records = collections.defaultdict(list)
 # a dict of lists of all the reverse (PTR) records
 reverse_records = collections.defaultdict(list)
 
@@ -98,6 +100,35 @@ def load_reverse_records(zone, record_type, zone_type):
         reverse_records[qname].append(rdata.target)
         record_count += 1
     return record_count
+
+def load_cname_records(zone, record_type, zone_type):
+    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
+## for the given zone, load all records of the requested type (CNAME) into the global dictionary
+## modifies global cname_records[] !!!
+## as this will be called for ALL zones being loaded, we can also check for CNAME
+## records that might be in a reverse zone
+    record_count = 0
+    #make sure we aren't trying to load non-CNAME records into the CNAME dictionary
+    #which would be a parameter error
+    if (record_type != 'CNAME'):
+      print('load_cname_records: invalid record type %s' % record_type)
+      sys.exit()
+    for (qname, ttl, rdata) in zone.iterate_rdatas(record_type):
+        # the qname is already a FQDN since we used relativize=False
+        if (debug):
+            print ('load_cname_records: qname %s target %s' % (qname, str(rdata.target)))
+        # if the zone type isn't a forward zone, then we shouldn't see any CNAME records
+        if (zone_type != 'forward'):
+            print()
+            print('BADREC: CNAME record %s/%s found in non-forward zone' % (qname,rdata.target))
+            continue
+       # append the target we just found to the list of targets for this qname
+        cname_records[qname].append(rdata.target)
+        record_count += 1
+    return record_count
+
+
+
 
 def find_reverse_from_forward_by_dns(revname):
 # returns all answers
@@ -287,8 +318,8 @@ def main():
         sys.exit()
 
     # go read all the zones via AXFR or zone file, depending on the argument
-    # and process each zone 3 times, once for A records, once for AAAA and once for PTR
-        ## FIXME - handle CNAME records in some fashion, which is different from A, AAAA
+    # and process each zone multiple times, once for A records, once for AAAA, once for CNAME and once for PTR
+
     for zone in zone_name :
        print('loading %s ... ' % zone)
        if (zone.endswith(zone_suffix)) :
@@ -315,18 +346,21 @@ def main():
         # make multiple passes over each zone, one pass for each record type
        forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
        forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
+       cnames_loaded = load_cname_records(z, 'CNAME', zone_type)
        reverse_Ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
-       print('%d A records, %d AAAA records, %d PTR records loaded (%d total)' %
-             (forward_A_records_loaded, forward_AAAA_records_loaded, reverse_Ptr_records_loaded,
-              (forward_A_records_loaded + forward_AAAA_records_loaded + reverse_Ptr_records_loaded)),
+       print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total)' %
+             (forward_A_records_loaded, forward_AAAA_records_loaded, cnames_loaded, reverse_Ptr_records_loaded,
+              (forward_A_records_loaded + forward_AAAA_records_loaded + cnames_loaded + reverse_Ptr_records_loaded)),
              end ="")
        print('done.')
 
     # now that we have all the data loaded...
     # do all the forward record tests
-    check_all_forwards()
+####    check_all_forwards()
+    # do all the cname record tests
+    ## check_all_cnames()
     # do all the reverse record tests
-    check_all_reverses()
+####    check_all_reverses()
 
     # if requested, build a target list of names and IP addresses to
     # hand to nmap and let it ping in parallel
