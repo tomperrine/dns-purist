@@ -1,12 +1,14 @@
 # dns-purist
 
 The purpose of dns-purist is to find internal inconsistencies and
-missing records in DNS servers and zone files.
+missing records in DNS servers and zone files. It can also be used to
+create target lists of IP addresses suitable for passing to ping/scan
+tools such as nmap.
 
 It takes zones as either zone files already downloaded from servers,
-or will do its own AXFR for a zone if there is no local copy already
-present. Doing the AXFR requires that the host running dns-purist has
-permission to actually do zone transfers for the indicated zones.
+or by doing its own AXFR for a zone. Doing the AXFR requires that the
+host running dns-purist has permission to actually do zone transfers
+for the indicated zones.
 
 Arguments that end in ".zone" are assumed to be forward zone
 files. Arguments that end in ".revzone" are assumed to be reverse zone
@@ -19,7 +21,9 @@ will be processed as forward zones.
 
 Dns-purist works by loading all the named zones into forward and
 reverse internal databases and then looking for forward/reverse
-inconsistencies in all the loaded information.
+inconsistencies in all the loaded information. It also loads and looks
+for problems with CNAME records. SOA and other tests are on the to-do
+list.
 
 In general, dns-purist will not look beyond the loaded zones, except
 optionally it can do individual DNS lookups for PTR records that were

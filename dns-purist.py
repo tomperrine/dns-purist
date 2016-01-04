@@ -296,11 +296,11 @@ def check_all_cnames() :
                 ## should we try to resolve this via DNS query?
                 if (no_dns):
                     # nope, not going to try DNS, so just error and continue
-                    print('CNAME_BAD_NO_DNS: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
+                    print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
                 else:
                     ## TODO - do a forward query for the rdate target
                     ## TODO - for now, just show a message and continue
-                    print('CNAME_BAD_DNS: CNAME  %s ->  %s which does not resolve' % (cname, rdata))
+                    print('CNAME_ERR_NOT_RESOLVED: CNAME  %s ->  %s which does not resolve' % (cname, rdata))
 
 
 
@@ -404,11 +404,11 @@ def main():
 
     # now that we have all the data loaded...
     # do all the forward record tests
-####    check_all_forwards()
+    check_all_forwards()
     # do all the cname record tests
     check_all_cnames()
     # do all the reverse record tests
-####    check_all_reverses()
+    check_all_reverses()
 
     # if requested, build a target list of names and IP addresses to
     # hand to nmap and let it ping in parallel
