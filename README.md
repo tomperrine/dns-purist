@@ -3,6 +3,11 @@
 The purpose of dns-purist is to find internal inconsistencies and
 missing records in DNS servers and zone files.
 
+It can also build target lists of all the IP addresses from all the
+zones, for use with nmap or similar tools. When used to build target
+lists, the internal consistency checks are disabled and will not be
+performed.
+
 It takes zones as either zone files already downloaded from servers,
 or will do its own AXFR for a zone if there is no local copy already
 present. Doing the AXFR requires that the host running dns-purist has

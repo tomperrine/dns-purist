@@ -323,17 +323,23 @@ def main():
        print('done.')
 
     # now that we have all the data loaded...
-    # do all the forward record tests
-    check_all_forwards()
-    # do all the reverse record tests
-    check_all_reverses()
 
     # if requested, build a target list of names and IP addresses to
     # hand to nmap and let it ping in parallel
     # can also run nmap from a different place than the DNS queries
+    #
+    # making the target list disables all the internal checks (for now)
+    # FIXME - have build-target-list funcion take a filename argument so that we can do
+    # FIXME - target list and consistency checks in the same run
     if (make_list_for_nmap):
         # for now, only option is to dump to STDOUT
         dump_targets_to_file()
+    else:
+        # do all the forward record tests
+        check_all_forwards()
+        # do all the reverse record tests
+        check_all_reverses()
+
 
 
     sys.exit()
