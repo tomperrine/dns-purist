@@ -31,13 +31,21 @@ def load_valid_ranges(range_file):
     for l in f:
         l = l.rstrip()
         print('<%s>' % l)
+# TODO validate that the range is properly formatted
         valid_address_ranges.append(l)
         valid_range_count += 1
-    print('%d valid ranges added' % valid_range_count)
+    print('%d valid ranges loaded' % valid_range_count)
 
 
 def load_suspect_ips(ip_file):
-    b = 2
+    address_count = 0
+    f = open(ip_file, 'r')
+    for l in f:
+        l = l.rstrip()
+# validate that the IP address is properly formatted
+        suspect_ip_list.append(l)
+        address_count += 1
+    print('%d valid addresses loaded' % address_count)
 
 def main():
 
