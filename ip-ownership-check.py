@@ -33,12 +33,14 @@ def load_valid_ranges(range_file):
         l = l.rstrip()
 # TODO validate that the range is properly formatted
         try:
-            address = ipaddress.IPv4Network(l)
-            valid_address_ranges.append(address)
-            valid_range_count += 1
+            range = ipaddress.ip_network(l)
         except ValueError:
-            print('VALUEERROR: %s' % l)
+            print('VALUEERROR: <%s>' % l)
             invalid_range_count += 1
+        else:
+            # have to add the original string, not the address object that was used for testing for valid syntax
+            valid_address_ranges.append(l)
+            valid_range_count += 1
     print('%d valid ranges loaded, %d invalid ranges ignored' % (valid_range_count, invalid_range_count))
 
 
@@ -54,13 +56,12 @@ def load_suspect_ips(ip_file):
 
 def addr_in_range(ip_addr, ip_range_list):
 # is the given IP address contained in any of the loaded ranges?
+    test_address = ipaddress.ip_address(ip_addr)
     for ip_range in ip_range_list:
-        #TODO detect and handle ipv6
-        if (ipaddress.IPv4Address(ip_addr) in ip_range):
+        # make sure testing an ipaddress.ip_address for membership in an ipaddress.ip_network data type
+        if (test_address in ipaddress.ip_network(ip_range)):
             return True
     return False
-
-
 
 def main():
 
@@ -74,7 +75,6 @@ def main():
 
 # load valid IP ranges
     load_valid_ranges(valid_ranges_file)
-
 
 # load IPs to check for easier iteration and performance, makes it easier to handle XLS in future
     load_suspect_ips(ips_to_check_file)
