@@ -395,10 +395,10 @@ def main():
        ## TODO - figure out how to deal with IP addresses as CNAME targets
        ## TODO - the zones were all loaded with relativize=False, so had the zone name appended if not present
        cnames_loaded = load_cname_records(z, 'CNAME', zone_type)
-       reverse_Ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
+       reverse_ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
        print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total)' %
-             (forward_A_records_loaded, forward_AAAA_records_loaded, cnames_loaded, reverse_Ptr_records_loaded,
-              (forward_A_records_loaded + forward_AAAA_records_loaded + cnames_loaded + reverse_Ptr_records_loaded)),
+             (forward_A_records_loaded, forward_AAAA_records_loaded, cnames_loaded, reverse_ptr_records_loaded,
+              (forward_A_records_loaded + forward_AAAA_records_loaded + cnames_loaded + reverse_ptr_records_loaded)),
              end ="")
        print('done.')
 
