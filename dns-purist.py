@@ -7,7 +7,7 @@ import dns.query, dns.zone, dns.reversename, dns.resolver, dns.ipv4
 debug = True
 trace = False
 no_dns= False
-arg_allow_dns_lookups = False
+allow_dns_lookups = False
 
 # DNS server to AXFR from
 dns_server = 'ns1-int.scea.com'
@@ -25,7 +25,7 @@ cname_records = collections.defaultdict(list)
 reverse_records = collections.defaultdict(list)
 
 
-usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--build_target-list] [--no_dns] [--arg_allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
+usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--build_target-list] [--no_dns] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
 
 
 
@@ -45,7 +45,7 @@ def is_valid_ip(addr):
 
 
 def load_forward_records(zone, record_type, zone_type):
-    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  allow_dns_lookups
 ## for the given zone, load all records of the requested type (A or AAAA) into the global dictionary
 ## modifies global forward_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for forward
@@ -81,7 +81,7 @@ def load_forward_records(zone, record_type, zone_type):
 
 
 def load_reverse_records(zone, record_type, zone_type):
-    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  allow_dns_lookups
 ## for the given zone, load all records of the requested type (PTR) into the global dictionary
 ## modifies global reverse_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for reverse
@@ -107,7 +107,7 @@ def load_reverse_records(zone, record_type, zone_type):
     return record_count
 
 def load_cname_records(zone, record_type, zone_type):
-    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  allow_dns_lookups
 ## for the given zone, load all records of the requested type (CNAME) into the global dictionary
 ## modifies global cname_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for CNAME
@@ -137,7 +137,7 @@ def load_cname_records(zone, record_type, zone_type):
 
 def find_reverse_from_forward_by_dns(revname):
 # returns all answers
-    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  allow_dns_lookups
 
     if (trace):
         print('find_reverse_from_forward_by_dns %s' % revname)
@@ -162,7 +162,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
 # 2. ensure that the address has a PTR record that matches the FQDN (check the DB, optionally do a DNS call based on allow_dns_query)
 # ignore any extra PTR records that may match other FQDNs. they will be checked during some other call on some other FQDN
 # returns True if a MATCH is found, False otherwise even if there are SOME PTRs for the address
-    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  allow_dns_lookups
 
     if (trace):
         print('find_reverse_from_forward: %s %s %s' % (fqdn, address, allow_dns_query))
@@ -228,7 +228,7 @@ def check_all_forwards() :
        addr_count = len(forward_records[fqdn])
        for addr in forward_records[fqdn] :
           # addr is an IPV4Address, is easier to check as a string
-          if (find_reverse_from_forward(fqdn, str(addr), arg_allow_dns_lookups)) :
+          if (find_reverse_from_forward(fqdn, str(addr), allow_dns_lookups)) :
              # found at least one valid PTR that points to this name
              pass
   #            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
@@ -253,7 +253,7 @@ def check_all_reverses() :
             print('query <%s> target(s) ' % reverse, end="")
         for record in reverse_records[reverse] :
             try:
-                if (find_reverse_from_forward(record, dns.reversename.to_address(reverse), arg_allow_dns_lookups)) :
+                if (find_reverse_from_forward(record, dns.reversename.to_address(reverse), allow_dns_lookups)) :
                     if (debug) :
                         print('FORWARD_OK: addr %s has forward %s' % (reverse, record))
                 else:
@@ -328,9 +328,9 @@ def dump_targets_to_file():
 
 
 def main():
-    global debug, trace, no_dns, warning,  arg_allow_dns_lookups
+    global debug, trace, no_dns, warning,  allow_dns_lookups
     make_list_for_nmap = False
-    trace = debug = warning = arg_allow_dns_lookups = False
+    trace = debug = warning = allow_dns_lookups = False
 
     if len(sys.argv) < 2:
         print(usage)
@@ -348,18 +348,18 @@ def main():
         elif (arg == '--build_target_list') :
             make_list_for_nmap = True
         elif (arg == '--allow_dns_lookups') :
-            arg_allow_dns_lookups = True
+            allow_dns_lookups = True
         else :
             zone_name.append(arg)
 
     if (trace) :
-        print('debug %s, warning %s, no_dns %s, arg_allow_dns_lookups %s, trace %s'
-             % (debug, warning, no_dns, arg_allow_dns_lookups, trace))
+        print('debug %s, warning %s, no_dns %s, allow_dns_lookups %s, trace %s'
+             % (debug, warning, no_dns, allow_dns_lookups, trace))
         print('zone_name(s) %s' % zone_name)
 
 
 
-    if (arg_allow_dns_lookups and no_dns):
+    if (allow_dns_lookups and no_dns):
         print('dueling DNS options')
         sys.exit()
 
