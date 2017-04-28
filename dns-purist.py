@@ -25,10 +25,10 @@ def ping(host):
     import os, platform
 
     # Ping parameters as function of OS
-    ping_str = "-n 1" if  platform.system().lower()=="windows" else "-c 1"
+    ping_str = "-n 1" if  platform.system().lower()=="windows" else "-c 1 >/dev/null"
 
     # Ping
-    return os.system("ping " + ping_str + " " + host) == 0
+    return os.system("ping " + ping_str + " " + host ) == 0
 
 def strip_end(text, suffix):
     if not text.endswith(suffix):
