@@ -207,7 +207,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
     if (debug) :
         print('find_reverse_from_forward: cache NOMATCH %s' % (revname))
    # (optionally) see if we can find a real PTR record by DNS query
-    if (!allow_dns_query) :
+    if (not allow_dns_lookups) :
         return False
     else:
         answers = find_reverse_from_forward_by_dns(revname)
