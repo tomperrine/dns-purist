@@ -27,9 +27,6 @@ cname_records = collections.defaultdict(list)
 reverse_records = collections.defaultdict(list)
 
 
-usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--build_target-list] [--no_dns] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
-
-
 def strip_end(text, suffix):
 # strip the suffix from the string, if present
     if not text.endswith(suffix):
@@ -305,31 +302,10 @@ def check_all_cnames() :
 
 
 
-def dump_all_forwards():
-# print all the forward record ADDRESSES to STDOUT
-# to provide a target list file for input into nmap
-# want to use IPs for the target list, instead of names to avoid
-# DNS queries in nmap
-    for fqdn in forward_records.keys():
-        for addr in forward_records[fqdn] :
-            print('%s' % (addr))
-
-def dump_all_reverses():
-# print all the PTR record ADDRESSES to STDOUT
-    for reverse in reverse_records.keys():
-        print('%s' % dns.reversename.to_address(reverse))
-
-def dump_targets_to_file():
-# dump all the IPs and hostnames to file
-# this can be sort -u'ed later if needed
-# intent is to make a target list file for nmap so that it can ping in parallel
-#FIXME - should have a file option, for now just print to STDOUT
-    dump_all_forwards()
-    dump_all_reverses()
-
-
 def main():
     global debug, trace, no_dns, warning,  allow_dns_lookups
+
+    usage = 'Usage: dns-purist [--trace] [--debug] [--warning]  [--no_dns] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
     make_list_for_nmap = False
     trace = debug = warning = allow_dns_lookups = False
 
@@ -346,8 +322,6 @@ def main():
             no_dns = True
         elif (arg == '--warning') :
             warning = True
-        elif (arg == '--build_target_list') :
-            make_list_for_nmap = True
         elif (arg == '--allow_dns_lookups') :
             allow_dns_lookups = True
         else :
@@ -407,23 +381,10 @@ def main():
 
     # now that we have all the data loaded...
 
-    # if requested, build a target list of names and IP addresses to
-    # hand to nmap and let it ping in parallel
-    # can also run nmap from a different place than the DNS queries
-    #
-    # making the target list disables all the internal checks (for now)
-    # FIXME - have build-target-list funcion take a filename argument so that we can do
-    # FIXME - target list and consistency checks in the same run
-    if (make_list_for_nmap):
-        # for now, only option is to dump to STDOUT
-        dump_targets_to_file()
-    else:
-        # do all the forward record tests
-        check_all_forwards()
-        # do all the reverse record tests
-        check_all_reverses()
-
-
+    # do all the forward record tests
+    check_all_forwards()
+    # do all the reverse record tests
+    check_all_reverses()
 
     sys.exit()
 
