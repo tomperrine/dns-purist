@@ -1,17 +1,16 @@
 #!/usr/local/bin/python3
-import sys, collections
+import os, sys, collections
 import pprint
 import ipaddress
 import dns.query, dns.zone, dns.reversename, dns.resolver, dns.ipv4
-import os
 
 
 debug = True
 trace = False
-no_dns= False
 allow_dns_lookups = False
 
 # DNS server to AXFR from
+## TODO - command line options, or try all advertised NS records
 dns_server = 'ns1-int.scea.com'
 zone_suffix = '.zone'
 revzone_suffix = '.revzone'
@@ -35,6 +34,7 @@ def strip_end(text, suffix):
 
 def is_valid_ip(addr):
     # is this a syntactically valid IP address string
+    # (needed because the ipaddress package insists on throwing an error instead of giving a bool fcn)
     try:
         isitanaddr = ipaddress.ip_address(addr)
     except ValueError:
@@ -43,18 +43,18 @@ def is_valid_ip(addr):
 
 
 def load_forward_records(zone, record_type, zone_type):
-    global debug, trace, no_dns, warning,  allow_dns_lookups
+    global debug, trace, warning,  allow_dns_lookups
 ## for the given zone, load all records of the requested type (A or AAAA) into the global dictionary
 ## modifies global forward_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for forward
 ## records that might be in a reverse zone
     record_count = 0
     # make sure we aren't trying to load non A or AAAA records into the forward dictionary
-    # (parameter error)
+    # This would mean that we were called to load non forward records into the forward list
     if ( (record_type != 'A') and (record_type != 'AAAA')):
-        print('load_forward_records: invalid record type %s' % record_type)
+        print('load_forward_records: invalid record type %s is not a forward record' % record_type)
         sys.exit()
-   # search through the zone file looking for A/AAAA
+   # search through the zone looking for A/AAAA
     for (fqdn, ttl, rdata) in zone.iterate_rdatas(record_type):
         # this is already a FQDN since we used relativize=False
         #special case to get rid of the self-reference record
@@ -62,7 +62,10 @@ def load_forward_records(zone, record_type, zone_type):
             continue
         if (debug):
             print ('fqdn <%s> zone <%s>' % (fqdn, zone))
-      # if the zone type isn't a forward zone, then we should not see any forward records, emit warning
+        # if the zone type isn't a forward zone, then we should not see any forward records, emit warning
+        # remember that we search all zones (forward and reverse) for all record types, so even
+        # though we're loading "forward records" we might be iterating through a reverse zone, looking
+        # for these kinds of errors
         if (zone_type != 'forward'):
             print()
             print('BADREC: forward record %s/%s found in reverse zone' % (fqdn,rdata.address))
@@ -79,7 +82,7 @@ def load_forward_records(zone, record_type, zone_type):
 
 
 def load_reverse_records(zone, record_type, zone_type):
-    global debug, trace, no_dns, warning,  allow_dns_lookups
+    global debug, trace, warning,  allow_dns_lookups
 ## for the given zone, load all records of the requested type (PTR) into the global dictionary
 ## modifies global reverse_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for reverse
@@ -95,6 +98,9 @@ def load_reverse_records(zone, record_type, zone_type):
         if (debug):
             print ('load_reverse_records: qname %s target %s' % (qname, str(rdata.target)))
         # if the zone type isn't a reverse zone, then we shouldn't see any PTR records
+        # remember that we search all zones (forward and reverse) for all record types, so even
+        # though we're loading "forward records" we might be iterating through a reverse zone, looking
+        # for these kinds of errors
         if (zone_type != 'reverse'):
             print()
             print('BADREC: reverse record %s/%s found in forward zone' % (qname,rdata.target))
@@ -105,7 +111,7 @@ def load_reverse_records(zone, record_type, zone_type):
     return record_count
 
 def load_cname_records(zone, record_type, zone_type):
-    global debug, trace, no_dns, warning,  allow_dns_lookups
+    global debug, trace, warning,  allow_dns_lookups
 ## for the given zone, load all records of the requested type (CNAME) into the global dictionary
 ## modifies global cname_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for CNAME
@@ -121,6 +127,9 @@ def load_cname_records(zone, record_type, zone_type):
         if (debug):
             print ('load_cname_records: qname %s target %s' % (qname, str(rdata.target)))
         # if the zone type isn't a forward zone, then we shouldn't see any CNAME records
+        # remember that we search all zones (forward and reverse) for all record types, so even
+        # though we're loading "forward records" we might be iterating through a reverse zone, looking
+        # for these kinds of errors
         if (zone_type != 'forward'):
             print()
             print('BADREC: CNAME record %s/%s found in non-forward zone' % (qname,rdata.target))
@@ -134,8 +143,10 @@ def load_cname_records(zone, record_type, zone_type):
 
 
 def find_reverse_from_forward_by_dns(revname):
-# returns all answers
-    global debug, trace, no_dns, warning,  allow_dns_lookups
+# given a reversed form of an IP address, with the proper suffix (e.g. in-addr.arpa, ip6.arpa)
+# use DNS lookup to see of there are one or more PTR records for it
+# returns a list of all matching PTR records
+    global debug, trace, warning,  allow_dns_lookups
 
     if (trace):
         print('find_reverse_from_forward_by_dns %s' % revname)
@@ -160,7 +171,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
 # 2. ensure that the address has a PTR record that matches the FQDN (check the DB, optionally do a DNS call based on allow_dns_query)
 # ignore any extra PTR records that may match other FQDNs. they will be checked during some other call on some other FQDN
 # returns True if a MATCH is found, False otherwise even if there are SOME PTRs for the address
-    global debug, trace, no_dns, warning,  allow_dns_lookups
+    global debug, trace, warning,  allow_dns_lookups
 
     if (trace):
         print('find_reverse_from_forward: %s %s %s' % (fqdn, address, allow_dns_query))
@@ -183,7 +194,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
    # records are only loaded/cached if they are from a zone file
    # there's no caching of DNS lookups into the dictionary (by design, for now)
 
-# lets' try the cache first
+# let's try the cache first
     for target in reverse_records[revname] :
         if (target == fqdn) :
             if (debug) :
@@ -196,11 +207,9 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
     if (debug) :
         print('find_reverse_from_forward: cache NOMATCH %s' % (revname))
    # (optionally) see if we can find a real PTR record by DNS query
-   # unless --no_dns is set
-    if (no_dns) :
+    if (!allow_dns_query) :
         return False
-
-    if (allow_dns_query) :
+    else:
         answers = find_reverse_from_forward_by_dns(revname)
         for rdata in answers:
             if (str(rdata) == str(fqdn)):
@@ -292,20 +301,19 @@ def check_all_cnames() :
                 continue
             else :
                 ## should we try to resolve this via DNS query?
-                if (no_dns):
-                    # nope, not going to try DNS, so just error and continue
-                    print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
-                else:
+                if (allow_dns_lookups):
                     ## TODO - do a forward query for the rdate target
                     ## TODO - for now, just show a message and continue
                     print('CNAME_ERR_NOT_RESOLVED: CNAME  %s ->  %s which does not resolve' % (cname, rdata))
-
+                else :
+                    # nope, not going to try DNS, so just error and continue
+                    print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
 
 
 def main():
-    global debug, trace, no_dns, warning,  allow_dns_lookups
+    global debug, trace, warning,  allow_dns_lookups
 
-    usage = 'Usage: dns-purist [--trace] [--debug] [--warning]  [--no_dns] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
+    usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
     make_list_for_nmap = False
     trace = debug = warning = allow_dns_lookups = False
 
@@ -318,8 +326,6 @@ def main():
             debug = True
         elif (arg == '--trace') :
             trace = True
-        elif (arg == '--no_dns') :
-            no_dns = True
         elif (arg == '--warning') :
             warning = True
         elif (arg == '--allow_dns_lookups') :
@@ -328,15 +334,9 @@ def main():
             zone_name.append(arg)
 
     if (trace) :
-        print('debug %s, warning %s, no_dns %s, allow_dns_lookups %s, trace %s'
-             % (debug, warning, no_dns, allow_dns_lookups, trace))
+        print('debug %s, warning %s, allow_dns_lookups %s, trace %s'
+             % (debug, warning, allow_dns_lookups, trace))
         print('zone_name(s) %s' % zone_name)
-
-
-
-    if (allow_dns_lookups and no_dns):
-        print('dueling DNS options')
-        sys.exit()
 
     # go read all the zones via AXFR or zone file, depending on the argument
     # and process each zone multiple times, once for A records, once for AAAA, once for CNAME and once for PTR
