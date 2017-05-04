@@ -3,6 +3,8 @@ import sys, collections
 import pprint
 import ipaddress
 import dns.query, dns.zone, dns.reversename, dns.resolver, dns.ipv4
+import os
+
 
 debug = True
 trace = False
@@ -370,10 +372,12 @@ def main():
        print('loading %s ... ' % zone)
        if (zone.endswith(zone_suffix)) :
            origin = strip_end(zone, zone_suffix)
+           origin = os.path.basename(origin)
            z = dns.zone.from_file(zone, origin, relativize = False)
            zone_type = 'forward'
        elif (zone.endswith(revzone_suffix)) :
            origin = strip_end(zone, revzone_suffix)
+           origin = os.path.basename(origin)
            z = dns.zone.from_file(zone, origin, relativize=False)
            zone_type = 'reverse'
        else:
