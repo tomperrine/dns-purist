@@ -30,7 +30,6 @@ reverse_records = collections.defaultdict(list)
 usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--build_target-list] [--no_dns] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
 
 
-
 def strip_end(text, suffix):
 # strip the suffix from the string, if present
     if not text.endswith(suffix):
