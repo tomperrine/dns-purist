@@ -4,19 +4,33 @@ import pprint
 import ipaddress
 import dns.query, dns.zone, dns.reversename, dns.resolver, dns.ipv4
 
-
+#
+# Global variables - TODO get rid of these
+#
 debug = True
 trace = False
+# do or not allow "live" DNS lookups when trying to find matching PTRs for A/AAAA and v.v.
+# command line flag
 allow_dns_lookups = False
 
+
+#
+# this is used when we're give a zone name instead of a file
 # DNS server to AXFR from
 ## TODO - command line options, or try all advertised NS records
 dns_server = 'ns1-int.scea.com'
+
+# file suffixes used to tell forward and reverse zones based on filename
+## TODO - use command line args like "--forward_zone" and "--reverse_zone"
+# instead of magic file names
 zone_suffix = '.zone'
 revzone_suffix = '.revzone'
 
-
-zone_name = []
+#
+# the three internal databases holding all records collected from all given zones
+# no matter in which zone type they are found, all forwards, PTRs and CNAMES are inserted
+# into these three databases
+# this lets us find wrong record in wrong zone problems, such as PTR in forward zone and v.v
 
 # a dict of lists of all the forward (A, AAAA) records
 forward_records = collections.defaultdict(list)
@@ -26,6 +40,9 @@ cname_records = collections.defaultdict(list)
 reverse_records = collections.defaultdict(list)
 
 
+#
+# helper functions
+#
 def strip_end(text, suffix):
 # strip the suffix from the string, if present
     if not text.endswith(suffix):
@@ -312,6 +329,9 @@ def check_all_cnames() :
 
 def main():
     global debug, trace, allow_dns_lookups
+    # list of zones to process
+    zone_names = []
+
 
     usage = 'Usage: dns-purist [--trace] [--debug] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
     make_list_for_nmap = False
@@ -329,17 +349,17 @@ def main():
         elif (arg == '--allow_dns_lookups') :
             allow_dns_lookups = True
         else :
-            zone_name.append(arg)
+            zone_names.append(arg)
 
     if (trace) :
         print('debug %s, allow_dns_lookups %s, trace %s'
              % (debug, allow_dns_lookups, trace))
-        print('zone_name(s) %s' % zone_name)
+        print('zone_name(s) %s' % zone_names)
 
     # go read all the zones via AXFR or zone file, depending on the argument
     # and process each zone multiple times, once for A records, once for AAAA, once for CNAME and once for PTR
 
-    for zone in zone_name :
+    for zone in zone_names :
        print('loading %s ... ' % zone)
        if (zone.endswith(zone_suffix)) :
            origin = strip_end(zone, zone_suffix)
