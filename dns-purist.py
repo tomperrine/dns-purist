@@ -43,7 +43,7 @@ def is_valid_ip(addr):
 
 
 def load_forward_records(zone, record_type, zone_type):
-    global debug, trace, warning,  allow_dns_lookups
+    global debug, trace, allow_dns_lookups
 ## for the given zone, load all records of the requested type (A or AAAA) into the global dictionary
 ## modifies global forward_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for forward
@@ -82,7 +82,7 @@ def load_forward_records(zone, record_type, zone_type):
 
 
 def load_reverse_records(zone, record_type, zone_type):
-    global debug, trace, warning,  allow_dns_lookups
+    global debug, trace, allow_dns_lookups
 ## for the given zone, load all records of the requested type (PTR) into the global dictionary
 ## modifies global reverse_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for reverse
@@ -111,7 +111,7 @@ def load_reverse_records(zone, record_type, zone_type):
     return record_count
 
 def load_cname_records(zone, record_type, zone_type):
-    global debug, trace, warning,  allow_dns_lookups
+    global debug, trace, allow_dns_lookups
 ## for the given zone, load all records of the requested type (CNAME) into the global dictionary
 ## modifies global cname_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for CNAME
@@ -146,7 +146,7 @@ def find_reverse_from_forward_by_dns(revname):
 # given a reversed form of an IP address, with the proper suffix (e.g. in-addr.arpa, ip6.arpa)
 # use DNS lookup to see of there are one or more PTR records for it
 # returns a list of all matching PTR records
-    global debug, trace, warning,  allow_dns_lookups
+    global debug, trace, allow_dns_lookups
 
     if (trace):
         print('find_reverse_from_forward_by_dns %s' % revname)
@@ -171,7 +171,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
 # 2. ensure that the address has a PTR record that matches the FQDN (check the DB, optionally do a DNS call based on allow_dns_query)
 # ignore any extra PTR records that may match other FQDNs. they will be checked during some other call on some other FQDN
 # returns True if a MATCH is found, False otherwise even if there are SOME PTRs for the address
-    global debug, trace, warning,  allow_dns_lookups
+    global debug, trace, allow_dns_lookups
 
     if (trace):
         print('find_reverse_from_forward: %s %s %s' % (fqdn, address, allow_dns_query))
@@ -311,11 +311,11 @@ def check_all_cnames() :
 
 
 def main():
-    global debug, trace, warning,  allow_dns_lookups
+    global debug, trace, allow_dns_lookups
 
-    usage = 'Usage: dns-purist [--trace] [--debug] [--warning] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
+    usage = 'Usage: dns-purist [--trace] [--debug] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
     make_list_for_nmap = False
-    trace = debug = warning = allow_dns_lookups = False
+    trace = debug = allow_dns_lookups = False
 
     if len(sys.argv) < 2:
         print(usage)
@@ -326,16 +326,14 @@ def main():
             debug = True
         elif (arg == '--trace') :
             trace = True
-        elif (arg == '--warning') :
-            warning = True
         elif (arg == '--allow_dns_lookups') :
             allow_dns_lookups = True
         else :
             zone_name.append(arg)
 
     if (trace) :
-        print('debug %s, warning %s, allow_dns_lookups %s, trace %s'
-             % (debug, warning, allow_dns_lookups, trace))
+        print('debug %s, allow_dns_lookups %s, trace %s'
+             % (debug, allow_dns_lookups, trace))
         print('zone_name(s) %s' % zone_name)
 
     # go read all the zones via AXFR or zone file, depending on the argument
