@@ -127,19 +127,20 @@ def load_reverse_records(zone, record_type, zone_type):
         record_count += 1
     return record_count
 
-def load_cname_records(zone, record_type, zone_type):
-    global debug, trace, allow_dns_lookups
-## for the given zone, load all records of the requested type (CNAME) into the global dictionary
-## modifies global cname_records[] !!!
+def load_cname_records(zone, zone_type):
+# zone - zone to be loaded
+# is it a forward or reverse zone?
+## for the given zone, load all CNAME records into the global cname dictionary
 ## as this will be called for ALL zones being loaded, we can also check for CNAME
 ## records that might be in a reverse zone
+
+## TODO - figure out how to deal with IP addresses as CNAME targets
+
+    global debug, trace, allow_dns_lookups
+
     record_count = 0
-    #make sure we aren't trying to load non-CNAME records into the CNAME dictionary
-    #which would be a parameter error
-    if (record_type != 'CNAME'):
-      print('load_cname_records: invalid record type %s' % record_type)
-      sys.exit()
-    for (qname, ttl, rdata) in zone.iterate_rdatas(record_type):
+
+    for (qname, ttl, rdata) in zone.iterate_rdatas('CNAME'):
         # the qname is already a FQDN since we used relativize=False
         if (debug):
             print ('load_cname_records: qname %s target %s' % (qname, str(rdata.target)))
@@ -387,9 +388,9 @@ def main():
         # make multiple passes over each zone, one pass for each record type
        forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
        forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
-       ## TODO - figure out how to deal with IP addresses as CNAME targets
+
        ## TODO - the zones were all loaded with relativize=False, so had the zone name appended if not present
-       cnames_loaded = load_cname_records(z, 'CNAME', zone_type)
+       cnames_loaded = load_cname_records(z, zone_type)
        reverse_ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
        print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total)' %
              (forward_A_records_loaded, forward_AAAA_records_loaded, cnames_loaded, reverse_ptr_records_loaded,
