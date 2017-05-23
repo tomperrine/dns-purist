@@ -205,7 +205,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
    # get the reverse form of the IP address
     revname = dns.reversename.from_address(address)
     if (debug):
-        print('address <%s>, revname %s' % (address, revname))
+        print('address <%s>, revname <%s>' % (address, revname))
 
    # first, see if we have any PTR records at all
    # then, see if any of them match the given FQDN
@@ -214,10 +214,12 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
 
 # let's try the cache first
     for target in reverse_records[revname] :
+        if (debug) :
+            print('checking cache - target <%s>, fqdn <%s>' % (target, fqdn))
         if (target == fqdn) :
             if (debug) :
                 print('find_reverse_from_forward: cache MATCH %s %s %s' % (revname, target, fqdn))
-                return True
+            return True
 
     # at this point we haven't found any matching PTR records in the local db
     # lets see if we should try DNS and what we get
