@@ -219,6 +219,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
         if (target == fqdn) :
             if (debug) :
                 print('find_reverse_from_forward: cache MATCH %s %s %s' % (revname, target, fqdn))
+
             return True
 
     # at this point we haven't found any matching PTR records in the local db
@@ -394,11 +395,10 @@ def main():
        ## TODO - the zones were all loaded with relativize=False, so had the zone name appended if not present
        cnames_loaded = load_cname_records(z, zone_type)
        reverse_ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
-       print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total)' %
+       print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
              (forward_A_records_loaded, forward_AAAA_records_loaded, cnames_loaded, reverse_ptr_records_loaded,
-              (forward_A_records_loaded + forward_AAAA_records_loaded + cnames_loaded + reverse_ptr_records_loaded)),
-             end ="")
-       print('done.')
+              (forward_A_records_loaded + forward_AAAA_records_loaded + cnames_loaded + reverse_ptr_records_loaded)))
+
 
     # now that we have all the data loaded...
 
