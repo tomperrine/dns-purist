@@ -1,0 +1,7 @@
+13.85.216.in-addr.arpa.	3600	IN	SOA	top.bluehades. root.bluehades. 2013514581 10800 3600 2419200 900
+13.85.216.in-addr.arpa.	3600	IN	NS	ns1.bluehades.com.
+
+76.13.85.216.in-addr.arpa.	3600	IN	PTR	bluehades.com.
+76.13.85.216.in-addr.arpa.	3600	IN	PTR	a-real-host.bluehades.com.
+
+

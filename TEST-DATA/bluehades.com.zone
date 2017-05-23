@@ -1,0 +1,24 @@
+;;
+;;	$Id: master.bluehades.com,v 1.48 2016/05/06 01:23:22 root Exp root $
+;;
+$TTL 1h		; default time to live for resource records
+@		soa	thug.bluehades.com.	hostmaster.bluehades.com. (
+			2017052306	; serial
+			8h		; refresh
+			1h		; retry
+			7d		; expire
+			8h )		; negative
+
+		ns	ns1.sdsc.edu.
+		ns	SRI-NIC.ARPA.NET.
+
+		a	216.85.13.76
+
+;;		mx 10	thug.bluehades.com.
+
+should-be-missing	a	216.85.13.76
+
+a-real-host		a	216.85.13.76
+some-cname		cname	a-real-host.bluehades.com.
+
+
