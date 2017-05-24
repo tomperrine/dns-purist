@@ -3,5 +3,6 @@
 
 76.13.85.216.in-addr.arpa.	3600	IN	PTR	bluehades.com.
 76.13.85.216.in-addr.arpa.	3600	IN	PTR	a-real-host.bluehades.com.
+99.13.85.216.in-addr.arpa.	3600	IN	PTR	missing-a-record.bluehades.com.
 
 

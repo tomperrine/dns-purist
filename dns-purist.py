@@ -192,7 +192,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
     global debug, trace, allow_dns_lookups
 
     if (trace):
-        print('find_reverse_from_forward: %s %s %s' % (fqdn, address, allow_dns_query))
+        print('find_reverse_from_forward: fqdn %s address <%s> allow_dns_query %s' % (fqdn, address, allow_dns_query))
 
    # is this a valid IP address?
     if ( (not fqdn) or (not address)):
@@ -205,7 +205,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
    # get the reverse form of the IP address
     revname = dns.reversename.from_address(address)
     if (debug):
-        print('address <%s>, revname <%s>' % (address, revname))
+        print('find_reverse_from_forward: address <%s>, revname <%s>' % (address, revname))
 
    # first, see if we have any PTR records at all
    # then, see if any of them match the given FQDN
@@ -246,6 +246,32 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
         return False
     return False
 
+############
+def find_forward_from_reverse(fqdn, address):
+# given an FQDN and IP address:
+# 1. ensure that the address has a forward address record that matches the FQDN (check the DB, no DNS calls)
+# ignore any extra PTR records that may match other FQDNs. they will be checked during some other call on some other FQDN
+# returns True if a MATCH is found, False otherwise even if there are SOME PTRs for the address
+    global debug, trace, allow_dns_lookups
+
+    if (trace):
+        print('find_forward_from_reverse: fqdn %s address <%s>' % (fqdn, address))
+
+   # first, see if we have any forwards for the FQDN records at all
+   # then, see if any of them match the given address
+
+# let's try the cache first
+    for target in forward_records[fqdn] :
+        if (debug) :
+            print('checking cache - target <%s>, fqdn <%s>' % (target, fqdn))
+        if (target == fqdn) :
+            if (debug) :
+                print('find_forward_from_reverse: cache MATCH fqdn %s target %s' % (target, fqdn))
+            return True
+    return False
+
+###########
+
 def check_all_forwards() :
 # walk all the forward records and do the following tests
 # 1. has at least one matching PTR
@@ -276,13 +302,16 @@ def check_all_reverses() :
 # walk all the reverse record and do the following tests
 # 1. we have at least one matching forward record
 
+    if (debug) :
+        print ('check_all_reverses...')
+
     for reverse in reverse_records.keys():
         if (debug):
             print('check_all_reverses: query <%s> target(s) ' % reverse, end="")
         for record in reverse_records[reverse] :
             try:
                 # python3.6.x - change from 3.5.0 requires .decode here
-                if (find_reverse_from_forward(record, dns.reversename.to_address(reverse).decode(), allow_dns_lookups)) :
+                if (find_forward_from_reverse(record, dns.reversename.to_address(reverse).decode())) :
                     if (debug) :
                         print('FORWARD_OK: addr %s has forward %s' % (reverse, record))
                 else:
