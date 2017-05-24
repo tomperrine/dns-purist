@@ -278,10 +278,11 @@ def check_all_reverses() :
 
     for reverse in reverse_records.keys():
         if (debug):
-            print('query <%s> target(s) ' % reverse, end="")
+            print('check_all_reverses: query <%s> target(s) ' % reverse, end="")
         for record in reverse_records[reverse] :
             try:
-                if (find_reverse_from_forward(record, dns.reversename.to_address(reverse), allow_dns_lookups)) :
+                # python3.6.x - change from 3.5.0 requires .decode here
+                if (find_reverse_from_forward(record, dns.reversename.to_address(reverse).decode(), allow_dns_lookups)) :
                     if (debug) :
                         print('FORWARD_OK: addr %s has forward %s' % (reverse, record))
                 else:
