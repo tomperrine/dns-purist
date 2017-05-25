@@ -3,7 +3,7 @@
 ;;
 $TTL 1h		; default time to live for resource records
 @		soa	thug.bluehades.com.	hostmaster.bluehades.com. (
-			2017052306	; serial
+			2017052505	; serial
 			8h		; refresh
 			1h		; retry
 			7d		; expire
@@ -19,6 +19,16 @@ $TTL 1h		; default time to live for resource records
 should-be-missing	a	216.85.13.76
 
 a-real-host		a	216.85.13.76
+
+;; some cnames to test
 some-cname		cname	a-real-host.bluehades.com.
+other-cname		cname	a-real-host.bluehades.com.
+;; cname errors
+duplicate-cname		cname	a-real-host.bluehades.com.
+duplicate-cname		cname	should-be-missing.bluehades.com.
+;; both of these are wrong in different ways:
+ip-cname1		cname	216.85.13.76
+ip-cname2		cname	216.85.13.76.
+
 
 

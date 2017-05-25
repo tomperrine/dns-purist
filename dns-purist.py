@@ -323,7 +323,8 @@ def check_all_reverses() :
 def check_all_cnames() :
 # walk all the cname records and do the following tests
 # 1. there is not more than one CNAME records for the same name
-# 2. the target of the CNAME is NOT an IP address  TODO - this test is BROKEN
+# 2. the target of the CNAME is NOT an IP address
+###  TODO - this test is BROKEN, sort of, see below
 # 3. the target of the cname resolvable, either in the forward_records dictionary
 #    or optionally resolved via DNS
     for cname in cname_records.keys():
@@ -436,6 +437,9 @@ def main():
     check_all_forwards()
     # do all the reverse record tests
     check_all_reverses()
+    # and cnames
+    check_all_cnames()
+
 
     sys.exit()
 
