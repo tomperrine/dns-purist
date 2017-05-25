@@ -260,13 +260,13 @@ def find_forward_from_reverse(fqdn, address):
    # first, see if we have any forwards for the FQDN records at all
    # then, see if any of them match the given address
 
-# let's try the cache first
+    # we're only looking in the DB, not in DNS
     for target in forward_records[fqdn] :
         if (debug) :
-            print('checking cache - target <%s>, fqdn <%s>' % (target, fqdn))
-        if (target == fqdn) :
+            print('checking cache - target <%s>, address <%s>' % (target, address))
+        if (str(target) == str(address)) :
             if (debug) :
-                print('find_forward_from_reverse: cache MATCH fqdn %s target %s' % (target, fqdn))
+                print('find_forward_from_reverse: cache MATCH target %s address %s' % (target, address))
             return True
     return False
 
@@ -307,7 +307,7 @@ def check_all_reverses() :
 
     for reverse in reverse_records.keys():
         if (debug):
-            print('check_all_reverses: query <%s> target(s) ' % reverse, end="")
+            print('check_all_reverses (main loop): query <%s> target ' % reverse)
         for record in reverse_records[reverse] :
             try:
                 # python3.6.x - change from 3.5.0 requires .decode here
