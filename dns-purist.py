@@ -237,10 +237,6 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
                 if (debug) :
                     print('find_reverse_from_forward: query MATCH %s %s' % (revname, rdata))
                 return True # found at least one matching name
-            else :
-                if (debug) :
-                    print('find_reverse_from_forward: unmatched PTR %s %s' % (revname, rdata))
-                return False # found at least one PTR record, but it didn't match
         if (debug):
             print('find_reverse_from_forward: query NOMATCH %s' % (address))
         return False
