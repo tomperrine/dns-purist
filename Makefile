@@ -9,7 +9,7 @@ test-help:
 
 # test with dummy data
 test-dummy:
-	./dns-purist.py TEST-DATA/bluehades.com.zone TEST-DATA/13.85.216.in-addr.arpa.revzone
+	./dns-purist.py TEST-DATA/example.com.zone TEST-DATA/2.0.192.in-addr.arpa.revzone
 
 # all the data/output
 test-all:	dns-purist.py TEST-DATA/scea.com.zone TEST-DATA/10.in-addr.arpa.revzone

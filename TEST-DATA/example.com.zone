@@ -1,0 +1,32 @@
+;;
+;;
+$TTL 1h		; default time to live for resource records
+@		soa	sample.example.com.	hostmaster.example.com. (
+			2017060102	; serial
+			8h		; refresh
+			1h		; retry
+			7d		; expire
+			8h )		; negative
+
+		ns	ns1.example.com.
+
+		a	192.0.2.100
+
+		mx 10	mx.example.com.
+
+should-be-missing	a	192.0.2.100
+
+a-real-host		a	192.0.2.100
+
+;; some cnames to test
+some-cname		cname	a-real-host.example.com.
+other-cname		cname	a-real-host.example.com.
+;; cname errors
+duplicate-cname		cname	a-real-host.example.com.
+duplicate-cname		cname	should-be-missing.example.com.
+;; both of these are wrong in different ways:
+ip-cname1		cname	192.0.2.100
+ip-cname2		cname	192.0.2.100.
+
+
+

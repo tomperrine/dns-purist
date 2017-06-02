@@ -1,0 +1,8 @@
+$ORIGIN 2.0.192.in-addr.arpa.
+@	3600	IN	SOA	soa.example.com. valid-soa.example.com. 2017052300 10800 3600 2419200 900
+	3600	IN	NS	ns1.example.com
+
+100.2.0.192.in-addr.arpa.	3600	IN	PTR	example.com.
+100.2.0.192.in-addr.arpa.	3600	IN	PTR	a-real-host.example.com.
+200.2.0.192.in-addr.arpa.	3600	IN	PTR	missing-a-record.example.com.
+
