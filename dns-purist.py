@@ -389,9 +389,15 @@ def main():
 
     # go read all the zones via AXFR or zone file, depending on the argument
     # and process each zone multiple times, once for A records, once for AAAA, once for CNAME and once for PTR
+    total_zones = 0
+    total_a_records = 0
+    total_aaaa_records = 0
+    total_reverse_records = 0
+    total_cname_records = 0
 
     for zone in zone_names :
        print('loading %s ... ' % zone)
+       total_zones += 1
        if (zone.endswith(zone_suffix)) :
            origin = strip_end(zone, zone_suffix)
            origin = os.path.basename(origin)
@@ -419,9 +425,16 @@ def main():
        forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
        forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
 
+       total_a_records += forward_A_records_loaded
+       total_aaaa_records += forward_AAAA_records_loaded
+
        ## TODO - the zones were all loaded with relativize=False, so had the zone name appended if not present
        cnames_loaded = load_cname_records(z, zone_type)
+       total_cname_records += cnames_loaded
+
        reverse_ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
+       total_reverse_records += reverse_ptr_records_loaded
+
        print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
              (forward_A_records_loaded, forward_AAAA_records_loaded, cnames_loaded, reverse_ptr_records_loaded,
               (forward_A_records_loaded + forward_AAAA_records_loaded + cnames_loaded + reverse_ptr_records_loaded)))
@@ -435,6 +448,12 @@ def main():
     check_all_reverses()
     # and cnames
     check_all_cnames()
+
+    print('GRAND TOTALS: %d zones loaded. %d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
+          (total_zones, total_a_records, total_aaaa_records, total_cname_records, total_reverse_records,
+              (total_a_records + total_aaaa_records + total_cname_records + total_reverse_records)))
+
+
 
 
     sys.exit()
