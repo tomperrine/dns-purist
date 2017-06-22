@@ -357,6 +357,26 @@ def check_all_cnames() :
                     # nope, not going to try DNS, so just error and continue
                     print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
 
+def dump_all_forward_addresses():
+# print all the forward record ADDRESSES to STDOUT
+# to provide a target list file for input into nmap
+# want to use IPs for the target list, instead of names to avoid
+# DNS queries in nmap
+    for fqdn in forward_records.keys():
+        for addr in forward_records[fqdn] :
+            print('%s' % (addr))
+
+def dump_all_reverse_addresses():
+# print all the PTR record ADDRESSES to STDOUT
+    for reverse in reverse_records.keys():
+        print('%s' % dns.reversename.to_address(reverse).decode('utf-8'))
+
+def dump_all_forward_names():
+# print all the forward record NAMES to STDOUT
+    for fqdn in forward_records.keys():
+        print('%s' % fqdn)
+
+
 
 def main():
     global debug, trace, allow_dns_lookups
@@ -364,9 +384,9 @@ def main():
     zone_names = []
 
 
-    usage = 'Usage: dns-purist [--trace] [--debug] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
+    usage = 'Usage: dns-purist [--trace] [--debug] [--dump_forwards | --dump_reverses] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
     make_list_for_nmap = False
-    trace = debug = allow_dns_lookups = False
+    trace = debug = allow_dns_lookups = dump_ips = dump_names = False
 
     if len(sys.argv) < 2:
         print(usage)
@@ -379,13 +399,13 @@ def main():
             trace = True
         elif (arg == '--allow_dns_lookups') :
             allow_dns_lookups = True
+        elif (arg == '--dump_ips') :
+            dump_ips = True
+        elif (arg == '--dump_names') :
+            dump_names = True
         else :
             zone_names.append(arg)
 
-    if (trace) :
-        print('debug %s, allow_dns_lookups %s, trace %s'
-             % (debug, allow_dns_lookups, trace))
-        print('zone_name(s) %s' % zone_names)
 
     # go read all the zones via AXFR or zone file, depending on the argument
     # and process each zone multiple times, once for A records, once for AAAA, once for CNAME and once for PTR
@@ -396,19 +416,20 @@ def main():
     total_cname_records = 0
 
     for zone in zone_names :
-       print('loading %s ... ' % zone)
-       total_zones += 1
-       if (zone.endswith(zone_suffix)) :
-           origin = strip_end(zone, zone_suffix)
-           origin = os.path.basename(origin)
-           z = dns.zone.from_file(zone, origin, relativize = False)
-           zone_type = 'forward'
-       elif (zone.endswith(revzone_suffix)) :
-           origin = strip_end(zone, revzone_suffix)
-           origin = os.path.basename(origin)
-           z = dns.zone.from_file(zone, origin, relativize=False)
-           zone_type = 'reverse'
-       else:
+        if ( not ( dump_names or dump_ips) ):
+            print('loading %s ... ' % zone, end="")
+        total_zones += 1
+        if (zone.endswith(zone_suffix)) :
+            origin = strip_end(zone, zone_suffix)
+            origin = os.path.basename(origin)
+            z = dns.zone.from_file(zone, origin, relativize = False)
+            zone_type = 'forward'
+        elif (zone.endswith(revzone_suffix)) :
+            origin = strip_end(zone, revzone_suffix)
+            origin = os.path.basename(origin)
+            z = dns.zone.from_file(zone, origin, relativize=False)
+            zone_type = 'reverse'
+        else:
            try:
                z = dns.zone.from_xfr(dns.query.xfr(dns_server, zone), relativize=False)
            except dns.exception.FormError :
@@ -422,34 +443,41 @@ def main():
 
         # in order to properly process all types of records, we have to
         # make multiple passes over each zone, one pass for each record type
-       forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
-       forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
+        forward_A_records_loaded = load_forward_records(z, 'A', zone_type)
+        forward_AAAA_records_loaded = load_forward_records(z, 'AAAA', zone_type)
 
-       total_a_records += forward_A_records_loaded
-       total_aaaa_records += forward_AAAA_records_loaded
+        total_a_records += forward_A_records_loaded
+        total_aaaa_records += forward_AAAA_records_loaded
 
        ## TODO - the zones were all loaded with relativize=False, so had the zone name appended if not present
-       cnames_loaded = load_cname_records(z, zone_type)
-       total_cname_records += cnames_loaded
+        cnames_loaded = load_cname_records(z, zone_type)
+        total_cname_records += cnames_loaded
 
-       reverse_ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
-       total_reverse_records += reverse_ptr_records_loaded
+        reverse_ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
+        total_reverse_records += reverse_ptr_records_loaded
 
-       print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
+        if ( not ( dump_names or dump_ips) ):
+            print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
              (forward_A_records_loaded, forward_AAAA_records_loaded, cnames_loaded, reverse_ptr_records_loaded,
               (forward_A_records_loaded + forward_AAAA_records_loaded + cnames_loaded + reverse_ptr_records_loaded)))
 
 
     # now that we have all the data loaded...
 
-    # do all the forward record tests
-    check_all_forwards()
-    # do all the reverse record tests
-    check_all_reverses()
-    # and cnames
-    check_all_cnames()
-
-    print('GRAND TOTALS: %d zones loaded. %d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
+    if (dump_ips) :
+        dump_all_forward_addresses()
+        dump_all_reverse_addresses()
+    elif (dump_names) :
+        dump_all_forward_names()
+        sys.exit()
+    else :
+        # do all the forward record tests
+        check_all_forwards()
+        # do all the reverse record tests
+        check_all_reverses()
+        # and cnames
+        check_all_cnames()
+        print('GRAND TOTALS: %d zones loaded. %d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
           (total_zones, total_a_records, total_aaaa_records, total_cname_records, total_reverse_records,
               (total_a_records + total_aaaa_records + total_cname_records + total_reverse_records)))
 
