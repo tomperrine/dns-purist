@@ -376,6 +376,17 @@ def dump_all_forward_names():
     for fqdn in forward_records.keys():
         print('%s' % fqdn)
 
+def dump_all_records():
+# for each record print both the name and the IP address
+    for fqdn in forward_records.keys():
+        for addr in forward_records[fqdn] :
+            print('%s %s' % (fqdn,addr))
+# and the reverses
+    for reverse in reverse_records.keys():
+        print('%s %s' % (reverse, dns.reversename.to_address(reverse).decode('utf-8')))
+
+
+
 
 
 def main():
@@ -384,9 +395,9 @@ def main():
     zone_names = []
 
 
-    usage = 'Usage: dns-purist [--trace] [--debug] [--dump_forwards | --dump_reverses] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
+    usage = 'Usage: dns-purist [--trace] [--debug] [--dump_forwards | --dump_reverses | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
     make_list_for_nmap = False
-    trace = debug = allow_dns_lookups = dump_ips = dump_names = False
+    trace = debug = allow_dns_lookups = dump_ips = dump_names = dump_records = False
 
     if len(sys.argv) < 2:
         print(usage)
@@ -403,6 +414,8 @@ def main():
             dump_ips = True
         elif (arg == '--dump_names') :
             dump_names = True
+        elif (arg == '--dump_records') :
+            dump_records = True
         else :
             zone_names.append(arg)
 
@@ -470,6 +483,8 @@ def main():
     elif (dump_names) :
         dump_all_forward_names()
         sys.exit()
+    elif (dump_records):
+        dump_all_records()
     else :
         # do all the forward record tests
         check_all_forwards()
