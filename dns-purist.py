@@ -272,6 +272,7 @@ def check_all_forwards() :
 # walk all the forward records and do the following tests
 # 1. has at least one matching PTR
 # 2. is in one of our known netblocks ##TODO
+    missing_ptr_count = 0
     for fqdn in forward_records.keys():
        if (trace):
           print('forward <%s> address ' % fqdn, end="")
@@ -284,6 +285,7 @@ def check_all_forwards() :
   #            print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
           else:
              print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
+             missing_ptr_count += 1
 
           if (debug):
              print('%s' % addr, end="")
@@ -292,15 +294,14 @@ def check_all_forwards() :
                 print()
              else:
                 print(', ', end="")
-
+    if (debug):
+        print('check_all_forwards returning %d' % missing_ptr_count)
+    return missing_ptr_count
 
 def check_all_reverses() :
 # walk all the reverse record and do the following tests
 # 1. we have at least one matching forward record
-
-    if (debug) :
-        print ('check_all_reverses...')
-
+    missing_forward_count = 0
     for reverse in reverse_records.keys():
         if (debug):
             print('check_all_reverses (main loop): query <%s> target ' % reverse)
@@ -312,9 +313,14 @@ def check_all_reverses() :
                         print('FORWARD_OK: addr %s has forward %s' % (reverse, record))
                 else:
                     print('NO_FORWARD: addr %s has NO matching forward' % (reverse))
+                    missing_forward_count += 1
             except dns.exception.SyntaxError :
                 print('ERROR: Syntax error in PTR record <%s>' % reverse)
                 continue
+    if (debug):
+        print('check_all_reverses returning %d' % missing_forward_count)
+    return missing_forward_count
+
 
 def check_all_cnames() :
 # walk all the cname records and do the following tests
@@ -323,6 +329,7 @@ def check_all_cnames() :
 ###  TODO - this test is BROKEN, sort of, see below
 # 3. the target of the cname resolvable, either in the forward_records dictionary
 #    or optionally resolved via DNS
+    cname_errors = 0
     for cname in cname_records.keys():
         if (debug):
             print('cname <%s> target(s) ' % cname, end="")
@@ -330,6 +337,7 @@ def check_all_cnames() :
         # test for multiple CNAMEs
         if (addr_count > 1):
             print('CNAME_ERR: multiple CNAMES for %s' % cname)
+            cname_errors += 1
         # walk all the CNAMEs for this name, checking them all
         for rdata in cname_records[cname] :
             # is the target a valid IP address?
@@ -338,6 +346,7 @@ def check_all_cnames() :
             # TODO -    somewhere around here in order to see if the portion is an IP address
             if (is_valid_ip(rdata)):
                 print('CNAME_ERR_ADDRESS: CNAME %s -> %s' % (cname, rdata))
+                cname_errors += 1
                 # no need to check to see if resolvable
                 continue
             # is the target "resolvable"
@@ -348,6 +357,7 @@ def check_all_cnames() :
                     print('CNAME_OK: CNAME  %s ->  %s -> %s' % (cname, rdata, forward_records[cname]))
                 continue
             else :
+                cname_errors += 1
                 ## should we try to resolve this via DNS query?
                 if (allow_dns_lookups):
                     ## TODO - do a forward query for the rdate target
@@ -356,6 +366,7 @@ def check_all_cnames() :
                 else :
                     # nope, not going to try DNS, so just error and continue
                     print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
+    return cname_errors
 
 def dump_all_forward_addresses():
 # print all the forward record ADDRESSES to STDOUT
@@ -398,6 +409,8 @@ def main():
     usage = 'Usage: dns-purist [--trace] [--debug] [--dump_forwards | --dump_reverses | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
     make_list_for_nmap = False
     trace = debug = allow_dns_lookups = dump_ips = dump_names = dump_records = False
+
+    missing_ptrs = missing_forwards = cname_errors = 0
 
     if len(sys.argv) < 2:
         print(usage)
@@ -487,14 +500,15 @@ def main():
         dump_all_records()
     else :
         # do all the forward record tests
-        check_all_forwards()
+        missing_ptrs = check_all_forwards()
         # do all the reverse record tests
-        check_all_reverses()
+        missing_forwards = check_all_reverses()
         # and cnames
-        check_all_cnames()
+        cname_errors = check_all_cnames()
         print('GRAND TOTALS: %d zones loaded. %d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
           (total_zones, total_a_records, total_aaaa_records, total_cname_records, total_reverse_records,
               (total_a_records + total_aaaa_records + total_cname_records + total_reverse_records)))
+        print('ERRORS: %d missing PTR records, %d missing A/AAAA records, %d CNAME errors ' % (missing_ptrs, missing_forwards, cname_errors))
 
 
 
