@@ -1,6 +1,6 @@
 #!/usr/local/bin/python3
 import os, sys, collections
-import pprint
+from pprint import pprint 
 import ipaddress
 import dns.query, dns.zone, dns.reversename, dns.resolver, dns.ipv4
 
@@ -25,6 +25,7 @@ dns_server = 'ns1-int.scea.com'
 # instead of magic file names
 zone_suffix = '.zone'
 revzone_suffix = '.revzone'
+extzone_suffix = '.extzone'
 
 #
 # the three internal databases holding all records collected from all given zones
@@ -38,6 +39,8 @@ forward_records = collections.defaultdict(list)
 cname_records = collections.defaultdict(list)
 # a dict of lists of all the reverse (PTR) records
 reverse_records = collections.defaultdict(list)
+# a list of external domains, for which we just assume things are "valid"
+external_zones = []
 
 
 #
@@ -57,6 +60,17 @@ def is_valid_ip(addr):
     except ValueError:
         return False
     return True
+
+def in_external_zone(name):
+# is this name (string) contained within any of the external zones
+# if it is, return True, else False
+    for extzone in external_zones:
+        # we want to know if the given name is any kind of subset of the external zone
+#        print('in_external_zone: name <%s> zone <%s>' % (name,extzone))
+        if (not (name.find(extzone) == -1)):
+            # we found it, we're done
+            return True
+    return False
 
 
 def load_forward_records(zone, record_type, zone_type):
@@ -157,6 +171,21 @@ def load_cname_records(zone, zone_type):
         record_count += 1
     return record_count
 
+def load_external_zones(file):
+    global debug, trace, allow_dns_lookups
+## for the given file, load each zone name into the list
+## returns the number of zone names loaded
+## modifies global external)zones
+    external_zone_count = 0
+
+    with open(file, 'r') as fp :
+        for line in fp :
+            external_zone_count += 1
+            external_zones.append(line.strip())
+
+    pprint(external_zones)
+    print ('loading external zones from %s: %d zones' % (file, external_zone_count))
+    return external_zone_count
 
 
 
@@ -329,6 +358,7 @@ def check_all_cnames() :
 ###  TODO - this test is BROKEN, sort of, see below
 # 3. the target of the cname resolvable, either in the forward_records dictionary
 #    or optionally resolved via DNS
+# 4. if the name is within the external domain skip list, then just quit early
     cname_errors = 0
     for cname in cname_records.keys():
         if (debug):
@@ -348,6 +378,10 @@ def check_all_cnames() :
                 print('CNAME_ERR_ADDRESS: CNAME %s -> %s' % (cname, rdata))
                 cname_errors += 1
                 # no need to check to see if resolvable
+                continue
+            # is the rdata pointing to a domain in the external skip list?
+            if (in_external_zone(str(rdata))):
+                # if so, just pretend it doesn't exist, go on
                 continue
             # is the target "resolvable"
             # was it in a loaded zone?
@@ -406,7 +440,7 @@ def main():
     zone_names = []
 
 
-    usage = 'Usage: dns-purist [--trace] [--debug] [--dump_forwards | --dump_reverses | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone'
+    usage = 'Usage: dns-purist [--trace] [--debug] [--dump_forwards | --dump_reverses | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone zonefile.extzone'
     make_list_for_nmap = False
     trace = debug = allow_dns_lookups = dump_ips = dump_names = dump_records = False
 
@@ -440,6 +474,7 @@ def main():
     total_aaaa_records = 0
     total_reverse_records = 0
     total_cname_records = 0
+    total_external_zones = 0
 
     for zone in zone_names :
         if ( not ( dump_names or dump_ips) ):
@@ -455,6 +490,11 @@ def main():
             origin = os.path.basename(origin)
             z = dns.zone.from_file(zone, origin, relativize=False)
             zone_type = 'reverse'
+        elif (zone.endswith(extzone_suffix)) :
+            total_external_zones += load_external_zones(zone)
+            # we can bail to the next arg, we've already done all the processing needed
+            # for this arg at this point
+            continue
         else:
            try:
                z = dns.zone.from_xfr(dns.query.xfr(dns_server, zone), relativize=False)

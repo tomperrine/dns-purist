@@ -2,7 +2,7 @@
 ;;
 $TTL 1h		; default time to live for resource records
 @		soa	sample.example.com.	hostmaster.example.com. (
-			2017060102	; serial
+			2017071902	; serial
 			8h		; refresh
 			1h		; retry
 			7d		; expire
@@ -27,6 +27,9 @@ duplicate-cname		cname	should-be-missing.example.com.
 ;; both of these are wrong in different ways:
 ip-cname1		cname	192.0.2.100
 ip-cname2		cname	192.0.2.100.
+external-zone-1		cname	thiszoneisexternal.com.
+external-zone-2		cname	test2.thiszoneisexternal.com.
+
 
 
 
