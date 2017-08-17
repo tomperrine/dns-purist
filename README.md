@@ -7,26 +7,40 @@ and reverse records conflict or are incomplete.
 It is not intended as a BIND zone file syntax checker,
 "named-checkconf" is a better tool for that specific case.
 
-DNS-purist takes multiple zones as either zone files already
-downloaded from servers (via AXFR), or by doing its own AXFR for a
-zone. Doing the AXFR requires that the host running dns-purist has
-permission to actually do zone transfers for the indicated zones from
-an appropriate DNS server.
-
-Arguments that end in ".zone" are assumed to be forward zone
-files. Arguments that end in ".revzone" are assumed to be reverse zone
-files. For non-file zone arguments, those ending in "in-addr.arpa" and
-"ip6.arpa" are automatically detected as reverse zones, all others
-will be processed as forward zones.
-
-All other arguments are assumed to be the names of zones that should
-be AXFR'ed by dns-purist.
-
 Dns-purist works by loading all the named zones into single forward
 (A/AAAA/CNAME) and reverse (PTR) internal databases and then looking
 for forward/reverse inconsistencies in all the loaded information.
 
+All zone files are searched for all record types. This will catch the
+case where PTR records are located in a forward zone, and A/AAAA/CNAME
+records are included in a reverse zone.
+
 SOA and other tests are on the to-do list.
+
+DNS-purist takes multiple zones as either BIND-style zone files
+already downloaded from servers (via AXFR), or by doing its own AXFR
+for a zone. Doing the AXFR requires that the host running dns-purist
+has permission to actually do zone transfers for the indicated zones
+from an appropriate DNS server.
+
+DNS-purist reconizes and processes file arguments based in their
+suffix. It recognizes files of forward zones, reverse zones and
+external zones.
+
+Arguments that end in ".zone" are assumed to be forward zone
+files. Arguments that end in ".revzone" are assumed to be reverse zone
+files. Arguments that end in "extzone" are assumed to indicate files
+containing "external zones". External zones are lists of DNS zones (as
+opposed to actual zone-format files) for which pointers to them (such
+as CNAMES) should just be assumed to be correct. Think of them as a
+way to pretend that the necessary DNS lookup succeeded. These are
+useful when you have CNAMES out to other providers, such as AWS or
+Google and you don't want to check those entries.
+
+All other arguments are assumed to be the names of zones that should
+be AXFR'ed by dns-purist. For non-file zone arguments, those ending in
+"in-addr.arpa" and "ip6.arpa" are automatically detected as reverse
+zones, all others will be processed as forward zones.
 
 In general, dns-purist will not look beyond the loaded zones, except
 when requested ("--allow_dns_lookups") it can do individual DNS
@@ -62,3 +76,23 @@ For every entry in a reverse zone
 
    Is there a forward record that matches the address listed in every
    PTR record that was loaded?
+
+DNS-purist can also create useful lists, such as:
+
+* (--dump_ips) List all IP addresses contained in all loaded forward
+  and reverse zones. This is useful for comparing with "live IP"
+  reports from security systems such as Security Center. IP addresses
+  in DNS and not live could be crufty DNS. Live IPs that are not in
+  DNS could be a security issue.
+
+* (--dump_names) List all DNS names contained in all loaded forward
+  and reverse zones. This is useful for identifying all zones that may
+  be present in your DNS, even if not defined in your DNS. This can
+  include CNAME targets and PTR records to forward zones that you
+  don't control. This helps identify external dependencies you may
+  have on the DNS or systems outside your control.
+
+* (--dump_records) List all name/IP pairs gathered from all zones,
+  forward and reverse. Dumped as "name: IP", whether loaded from A/AAAA
+  or PTR records.
+
