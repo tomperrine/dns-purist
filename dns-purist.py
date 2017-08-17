@@ -440,7 +440,7 @@ def main():
     zone_names = []
 
 
-    usage = 'Usage: dns-purist [--trace] [--debug] [--dump_forwards | --dump_reverses | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone zonefile.extzone'
+    usage = 'Usage: dns-purist [--trace] [--debug] [--dump_ips | --dump_names | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone zonefile.extzone'
     make_list_for_nmap = False
     trace = debug = allow_dns_lookups = dump_ips = dump_names = dump_records = False
 
