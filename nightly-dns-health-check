@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# get today's zone files
+# run dns-purist, capturing the essential data
+# add today's metrics to the CSV file
+#
+# RUN FROM CRON - nightly
+#
+# remove all the zone transfer files- do this at the top of the script, so the files are around for an hour if I wnat to look at them
+# open a log file with the current date/time
+# transfer all the zones
+# go to sleep for a while
+# do it again
+
+TOPDIR=~tperrine/git-work/dns-purist
+DATE=`date +%Y%m%d`
+DIR=${TOPDIR}/${DATE}.dnsdata
+
+if [ -d "${DIR}" ]; then
+    echo "data directory ${DIR} exists - exit"
+    exit 1
+fi
+
+LOGFILE=${DIR}/dns-health-check.log
+
+mkdir $DIR
+
+cd ${DIR}
+
+${TOPDIR}/big-zone-xfer > ${LOGFILE}
+echo transfer complete
+grep failed ${LOGFILE}
+
+# now to run The Big Job
+
+echo starting - ``date``
+time ../dns-purist.py --allow_dns_lookups *.zone *.revzone ../zone-skip-list.extzone > dns-health.$DATE
+echo ending - ``date``
+
+
+
