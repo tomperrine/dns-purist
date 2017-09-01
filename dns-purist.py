@@ -203,7 +203,7 @@ def load_external_zones(file):
             external_zone_count += 1
             external_zones.append(line.strip())
 
-    psilent_print(external_zones)
+    silent_print(external_zones)
     silent_print ('loading external zones from %s: %d zones' % (file, external_zone_count))
     return external_zone_count
 
