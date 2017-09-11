@@ -8,7 +8,6 @@ import dns.query, dns.zone, dns.reversename, dns.resolver, dns.ipv4
 # Global variables - TODO get rid of these
 #
 debug = True
-trace = False
 # do or not allow "live" DNS lookups when trying to find matching PTRs for A/AAAA and v.v.
 # command line flag
 allow_dns_lookups = False
@@ -47,6 +46,22 @@ external_zones = []
 #
 # helper functions
 #
+def debug_print(fmt, *args, **kwargs):
+# print if debug option is set
+# the only accepted keyword arg is "end"
+    global debug
+    try: m = fmt % args
+    except:
+        # Catch mismatch between fmt/args; prevents logging.info from
+        # failing below, as well.
+        m = fmt
+        fmt = "%s"
+    if (debug):
+#        stderr.write("[%s] %s\n" % (time.asctime(), m))
+        print(fmt, *args, **kwargs)
+
+
+
 def silent_print(fmt, *args, **kwargs):
 # the only accepted keyword arg is "end"
     try: m = fmt % args
@@ -112,7 +127,7 @@ def does_it_resolve(name, record_type):
 
 
 def load_forward_records(zone, record_type, zone_type):
-    global debug, trace, allow_dns_lookups
+    global allow_dns_lookups
 ## for the given zone, load all records of the requested type (A or AAAA) into the global dictionary
 ## modifies global forward_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for forward
@@ -129,8 +144,7 @@ def load_forward_records(zone, record_type, zone_type):
         #special case to get rid of the self-reference record
         if (not fqdn):
             continue
-        if (debug):
-            silent_print ('fqdn <%s> zone <%s>' % (fqdn, zone))
+        debug_print ('fqdn <%s> zone <%s>' % (fqdn, zone))
         # if the zone type isn't a forward zone, then we should not see any forward records, emit warning
         # remember that we search all zones (forward and reverse) for all record types, so even
         # though we're loading "forward records" we might be iterating through a reverse zone, looking
@@ -142,8 +156,7 @@ def load_forward_records(zone, record_type, zone_type):
 
         addr = ipaddress.ip_address(rdata.address)
 
-        if (debug):
-            silent_print ('fqdn %s IP %s' % (fqdn, str(addr)))
+        debug_print ('fqdn %s IP %s' % (fqdn, str(addr)))
         # append the address we just found to the list of addresses for this FQDN
         forward_records[fqdn].append(addr)
         record_count += 1
@@ -151,7 +164,7 @@ def load_forward_records(zone, record_type, zone_type):
 
 
 def load_reverse_records(zone, record_type, zone_type):
-    global debug, trace, allow_dns_lookups
+    global allow_dns_lookups
 ## for the given zone, load all records of the requested type (PTR) into the global dictionary
 ## modifies global reverse_records[] !!!
 ## as this will be called for ALL zones being loaded, we can also check for reverse
@@ -164,8 +177,7 @@ def load_reverse_records(zone, record_type, zone_type):
       sys.exit()
     for (qname, ttl, rdata) in zone.iterate_rdatas(record_type):
         # this is already a full address since we used relativize=False
-        if (debug):
-            silent_print ('load_reverse_records: qname %s target %s' % (qname, str(rdata.target)))
+        debug_print ('load_reverse_records: qname %s target %s' % (qname, str(rdata.target)))
         # if the zone type isn't a reverse zone, then we shouldn't see any PTR records
         # remember that we search all zones (forward and reverse) for all record types, so even
         # though we're loading "forward records" we might be iterating through a reverse zone, looking
@@ -188,14 +200,13 @@ def load_cname_records(zone, zone_type):
 
 ## TODO - figure out how to deal with IP addresses as CNAME targets
 
-    global debug, trace, allow_dns_lookups
+    global allow_dns_lookups
 
     record_count = 0
 
     for (qname, ttl, rdata) in zone.iterate_rdatas('CNAME'):
         # the qname is already a FQDN since we used relativize=False
-        if (debug):
-            silent_print ('load_cname_records: qname %s target %s' % (qname, str(rdata.target)))
+        debug_print ('load_cname_records: qname %s target %s' % (qname, str(rdata.target)))
         # if the zone type isn't a forward zone, then we shouldn't see any CNAME records
         # remember that we search all zones (forward and reverse) for all record types, so even
         # though we're loading "forward records" we might be iterating through a reverse zone, looking
@@ -210,7 +221,7 @@ def load_cname_records(zone, zone_type):
     return record_count
 
 def load_external_zones(file):
-    global debug, trace, allow_dns_lookups
+    global allow_dns_lookups
 ## for the given file, load each zone name into the list
 ## returns the number of zone names loaded
 ## modifies global external)zones
@@ -241,10 +252,9 @@ def find_reverse_from_forward_by_dns(revname):
 # given a reversed form of an IP address, with the proper suffix (e.g. in-addr.arpa, ip6.arpa)
 # use DNS lookup to see of there are one or more PTR records for it
 # returns a list of all matching PTR records
-    global debug, trace, allow_dns_lookups
+    global allow_dns_lookups
 
-    if (trace):
-        silent_print('find_reverse_from_forward_by_dns %s' % revname)
+    debug_print('find_reverse_from_forward_by_dns %s' % revname)
     try:
         answers = dns.resolver.query(revname, 'PTR')
     except dns.resolver.NXDOMAIN :
@@ -266,10 +276,9 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
 # 2. ensure that the address has a PTR record that matches the FQDN (check the DB, optionally do a DNS call based on allow_dns_query)
 # ignore any extra PTR records that may match other FQDNs. they will be checked during some other call on some other FQDN
 # returns True if a MATCH is found, False otherwise even if there are SOME PTRs for the address
-    global debug, trace, allow_dns_lookups
+    global allow_dns_lookups
 
-    if (trace):
-        silent_print('find_reverse_from_forward: fqdn %s address <%s> allow_dns_query %s' % (fqdn, address, allow_dns_query))
+    debug_print('find_reverse_from_forward: fqdn %s address <%s> allow_dns_query %s' % (fqdn, address, allow_dns_query))
 
    # is this a valid IP address?
     if ( (not fqdn) or (not address)):
@@ -281,8 +290,7 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
 
    # get the reverse form of the IP address
     revname = dns.reversename.from_address(address)
-    if (debug):
-        silent_print('find_reverse_from_forward: address <%s>, revname <%s>' % (address, revname))
+    debug_print('find_reverse_from_forward: address <%s>, revname <%s>' % (address, revname))
 
    # first, see if we have any PTR records at all
    # then, see if any of them match the given FQDN
@@ -291,31 +299,25 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
 
 # let's try the cache first
     for target in reverse_records[revname] :
-        if (debug) :
-            silent_print('checking cache - target <%s>, fqdn <%s>' % (target, fqdn))
+        debug_print('checking cache - target <%s>, fqdn <%s>' % (target, fqdn))
         if (target == fqdn) :
-            if (debug) :
-                silent_print('find_reverse_from_forward: cache MATCH %s %s %s' % (revname, target, fqdn))
-
+            debug_print('find_reverse_from_forward: cache MATCH %s %s %s' % (revname, target, fqdn))
             return True
 
     # at this point we haven't found any matching PTR records in the local db
     # lets see if we should try DNS and what we get
 
-    if (debug) :
-        silent_print('find_reverse_from_forward: cache NOMATCH %s' % (revname))
-   # (optionally) see if we can find a real PTR record by DNS query
+    debug_print('find_reverse_from_forward: cache NOMATCH %s' % (revname))
+    # (optionally) see if we can find a real PTR record by DNS query
     if (not allow_dns_lookups) :
         return False
     else:
         answers = find_reverse_from_forward_by_dns(revname)
         for rdata in answers:
             if (str(rdata) == str(fqdn)):
-                if (debug) :
-                    silent_print('find_reverse_from_forward: query MATCH %s %s' % (revname, rdata))
+                debug_print('find_reverse_from_forward: query MATCH %s %s' % (revname, rdata))
                 return True # found at least one matching name
-        if (debug):
-            silent_print('find_reverse_from_forward: query NOMATCH %s' % (address))
+        debug_print('find_reverse_from_forward: query NOMATCH %s' % (address))
         return False
     return False
 
@@ -325,21 +327,18 @@ def find_forward_from_reverse(fqdn, address):
 # 1. ensure that the address has a forward address record that matches the FQDN (check the DB, no DNS calls)
 # ignore any extra PTR records that may match other FQDNs. they will be checked during some other call on some other FQDN
 # returns True if a MATCH is found, False otherwise even if there are SOME PTRs for the address
-    global debug, trace, allow_dns_lookups
+    global allow_dns_lookups
 
-    if (trace):
-        silent_print('find_forward_from_reverse: fqdn %s address <%s>' % (fqdn, address))
+    debug_print('find_forward_from_reverse: fqdn %s address <%s>' % (fqdn, address))
 
    # first, see if we have any forwards for the FQDN records at all
    # then, see if any of them match the given address
 
     # we're only looking in the DB, not in DNS
     for target in forward_records[fqdn] :
-        if (debug) :
-            silent_print('checking cache - target <%s>, address <%s>' % (target, address))
+        debug_print('checking cache - target <%s>, address <%s>' % (target, address))
         if (str(target) == str(address)) :
-            if (debug) :
-                silent_print('find_forward_from_reverse: cache MATCH target %s address %s' % (target, address))
+            debug_print('find_forward_from_reverse: cache MATCH target %s address %s' % (target, address))
             return True
     return False
 
@@ -351,28 +350,27 @@ def check_all_forwards() :
 # 2. is in one of our known netblocks ##TODO
     missing_ptr_count = 0
     for fqdn in forward_records.keys():
-       if (trace):
-          silent_print('forward <%s> address ' % fqdn, end="")
-       addr_count = len(forward_records[fqdn])
-       for addr in forward_records[fqdn] :
+        debug_print('forward <%s> address ' % fqdn, end="")
+        addr_count = len(forward_records[fqdn])
+        for addr in forward_records[fqdn] :
           # addr is an IPV4Address, is easier to check as a string
-          if (find_reverse_from_forward(fqdn, str(addr), allow_dns_lookups)) :
-             # found at least one valid PTR that points to this name
-             pass
-  #            silent_print('PTROK: host %s has A %s, found matching PTR' % (fqdn, addr))
-          else:
-             silent_print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
-             missing_ptr_count += 1
+            if (find_reverse_from_forward(fqdn, str(addr), allow_dns_lookups)) :
+                # found at least one valid PTR that points to this name
+                pass
+            else:
+                silent_print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
+                missing_ptr_count += 1
 
-          if (debug):
-             silent_print('%s' % addr, end="")
-             addr_count-= 1
-             if (addr_count < 1):
-                silent_endline()
-             else:
-                silent_print(', ', end="")
-    if (debug):
-        silent_print('check_all_forwards returning %d' % missing_ptr_count)
+             ## FIXME - should use debug_print but there's logic here that needs to be cleaned
+            if (debug):
+                debug_print('%s' % addr, end="")
+                addr_count-= 1
+                if (addr_count < 1):
+                    silent_endline()
+                else:
+                    silent_print(', ', end="")
+
+    debug_print('check_all_forwards returning %d' % missing_ptr_count)
     return missing_ptr_count
 
 def check_all_reverses() :
@@ -380,22 +378,19 @@ def check_all_reverses() :
 # 1. we have at least one matching forward record
     missing_forward_count = 0
     for reverse in reverse_records.keys():
-        if (debug):
-            silent_print('check_all_reverses (main loop): query <%s> target ' % reverse)
+        debug_print('check_all_reverses (main loop): query <%s> target ' % reverse)
         for record in reverse_records[reverse] :
             try:
                 # python3.6.x - change from 3.5.0 requires .decode here
                 if (find_forward_from_reverse(record, dns.reversename.to_address(reverse).decode())) :
-                    if (debug) :
-                        silent_print('FORWARD_OK: addr %s has forward %s' % (reverse, record))
+                    debug_print('FORWARD_OK: addr %s has forward %s' % (reverse, record))
                 else:
                     silent_print('NO_FORWARD: addr %s has NO matching forward' % (reverse))
                     missing_forward_count += 1
             except dns.exception.SyntaxError :
                 silent_print('ERROR: Syntax error in PTR record <%s>' % reverse)
                 continue
-    if (debug):
-        silent_print('check_all_reverses returning %d' % missing_forward_count)
+    debug_print('check_all_reverses returning %d' % missing_forward_count)
     return missing_forward_count
 
 
@@ -409,8 +404,7 @@ def check_all_cnames() :
 # 4. if the name is within the external domain skip list, then just quit early
     cname_errors = 0
     for cname in cname_records.keys():
-        if (debug):
-            silent_print('cname <%s> target(s) ' % cname, end="")
+        debug_print('cname <%s> target(s) ' % cname, end="")
         addr_count = len(cname_records[cname])
         # test for multiple CNAMEs
         if (addr_count > 1):
@@ -435,8 +429,7 @@ def check_all_cnames() :
             # was it in a loaded zone?
             if (forward_records[rdata]):
                 # it's in the cache, we're done and OK
-                if (debug):
-                    silent_print('CNAME_OK: CNAME  %s ->  %s -> %s' % (cname, rdata, forward_records[cname]))
+                debug_print('CNAME_OK: CNAME  %s ->  %s -> %s' % (cname, rdata, forward_records[cname]))
                 continue
             else :
                 ## should we try to resolve this via DNS query?
@@ -485,14 +478,14 @@ def dump_all_records():
 
 
 def main():
-    global debug, trace, allow_dns_lookups, silent_no_output
+    global allow_dns_lookups, silent_no_output
     # list of zones to process
     zone_names = []
 
 
-    usage = 'Usage: dns-purist [--trace] [--debug] [--csv_output | --dump_ips | --dump_names | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone zonefile.extzone'
+    usage = 'Usage: dns-purist [--debug] [--csv_output | --dump_ips | --dump_names | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone zonefile.extzone'
     make_list_for_nmap = False
-    trace = debug = allow_dns_lookups = dump_ips = dump_names = dump_records = False
+    debug = allow_dns_lookups = dump_ips = dump_names = dump_records = False
     silent_no_output = dump_csvs = False
 
     missing_ptrs = missing_forwards = cname_errors = 0
@@ -504,8 +497,6 @@ def main():
     for arg in sys.argv[1:]:
         if (arg == '--debug') :
             debug = True
-        elif (arg == '--trace') :
-            trace = True
         elif (arg == '--allow_dns_lookups') :
             allow_dns_lookups = True
         elif (arg == '--dump_ips') :
@@ -522,7 +513,7 @@ def main():
     if (dump_csvs) :
         # silent - no per-record/per-error output
         silent_no_output = True
-        # turn off all non trace/debug options
+        # turn off all non debug options
         dump_ips = dump_names = dump_records = False
 
     # go read all the zones via AXFR or zone file, depending on the argument
