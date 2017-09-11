@@ -93,6 +93,24 @@ def in_external_zone(name):
     return False
 
 
+def does_it_resolve(name, record_type):
+# give a hostname and record type, try to resolve it
+# return True/False
+    try:
+        answers = dns.resolver.query(name, record_type)
+    except dns.resolver.NXDOMAIN :
+        return (False)
+    except dns.exception.Timeout :
+        silent_print('ERROR: %s: DNS Timeout' % name)
+        return (False)
+    except Exception as exception:
+        silent_print('ERROR: %s: UNKNOWN resolver error' % name)
+        silent_print(' exc: %s' % type(exception).__name__ )
+    return (True)
+
+
+
+
 def load_forward_records(zone, record_type, zone_type):
     global debug, trace, allow_dns_lookups
 ## for the given zone, load all records of the requested type (A or AAAA) into the global dictionary
@@ -207,6 +225,16 @@ def load_external_zones(file):
     silent_print ('loading external zones from %s: %d zones' % (file, external_zone_count))
     return external_zone_count
 
+
+def find_any_forward_by_dns(hostname):
+# given a hostname, see if it can be resolved as an A, AAAA, or CNAME record
+# return True on the first(any) match, return False if not resolvable at all
+    for rec_type in ("A", "AAAA", "CNAME"):
+        if (does_it_resolve(hostname, rec_type)):
+            # found a valid record, done
+            return True
+    # eventually found nothing, return False
+    return False
 
 
 def find_reverse_from_forward_by_dns(revname):
@@ -411,14 +439,16 @@ def check_all_cnames() :
                     silent_print('CNAME_OK: CNAME  %s ->  %s -> %s' % (cname, rdata, forward_records[cname]))
                 continue
             else :
-                cname_errors += 1
                 ## should we try to resolve this via DNS query?
                 if (allow_dns_lookups):
-                    ## TODO - do a forward query for the rdate target
-                    ## TODO - for now, just show a message and continue
-                    silent_print('CNAME_ERR_NOT_RESOLVED: CNAME  %s ->  %s which does not resolve' % (cname, rdata))
+                    if (not (find_any_forward_by_dns(rdata))):
+                        silent_print('CNAME_ERR_NOT_RESOLVED: CNAME  %s ->  %s which does not resolve' % (cname, rdata))
+                        cname_errors += 1
+                    # continue either way
+                    continue
                 else :
                     # nope, not going to try DNS, so just error and continue
+                    cname_errors += 1
                     silent_print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
     return cname_errors
 
