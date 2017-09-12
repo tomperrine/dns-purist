@@ -2,26 +2,26 @@
 
 The purpose of dns-purist is to find internal inconsistencies and
 missing records in multiple DNS zones, especially cases where forward
-and reverse records conflict or are incomplete.
+and reverse records conflict or are incomplete. It also finds cases
+where CNAME records point to records that do not exist.
 
 It is not intended as a BIND zone file syntax checker,
 "named-checkconf" is a better tool for that specific case.
 
-Dns-purist works by loading all the named zones into single forward
-(A/AAAA/CNAME) and reverse (PTR) internal databases and then looking
-for forward/reverse inconsistencies in all the loaded information.
-
-All zone files are searched for all record types. This will catch the
-case where PTR records are located in a forward zone, and A/AAAA/CNAME
-records are included in a reverse zone.
-
-SOA and other tests are on the to-do list.
+Dns-purist works by loading all the named zones into three internal
+databases: forward records (A/AAAA), reverse (PTR) and CNAME, and then
+looking for forward/reverse inconsistencies and missing information in
+all the loaded information.
 
 DNS-purist takes multiple zones as either BIND-style zone files
 already downloaded from servers (via AXFR), or by doing its own AXFR
 for a zone. Doing the AXFR requires that the host running dns-purist
 has permission to actually do zone transfers for the indicated zones
 from an appropriate DNS server.
+
+During loading, all zones are searched for all record types. This will
+catch the case where PTR records are located in a forward zone, and
+A/AAAA/CNAME records are included in a reverse zone, for example.
 
 DNS-purist reconizes and processes file arguments based in their
 suffix. It recognizes files of forward zones, reverse zones and
