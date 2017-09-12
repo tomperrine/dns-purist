@@ -2,7 +2,7 @@
 ;;
 $TTL 1h		; default time to live for resource records
 @		soa	sample.example.com.	hostmaster.example.com. (
-			2017071902	; serial
+			2017091101	; serial
 			8h		; refresh
 			1h		; retry
 			7d		; expire
@@ -29,6 +29,7 @@ ip-cname1		cname	192.0.2.100
 ip-cname2		cname	192.0.2.100.
 external-zone-1		cname	thiszoneisexternal.com.
 external-zone-2		cname	test2.thiszoneisexternal.com.
+valid-cname-not-in-zone		cname	google.com.
 
 
 
