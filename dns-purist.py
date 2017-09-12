@@ -7,7 +7,7 @@ import dns.query, dns.zone, dns.reversename, dns.resolver, dns.ipv4
 #
 # Global variables - TODO get rid of these
 #
-debug = True
+debug = False
 # do or not allow "live" DNS lookups when trying to find matching PTRs for A/AAAA and v.v.
 # command line flag
 allow_dns_lookups = False
@@ -478,7 +478,7 @@ def dump_all_records():
 
 
 def main():
-    global allow_dns_lookups, silent_no_output
+    global debug, allow_dns_lookups, silent_no_output
     # list of zones to process
     zone_names = []
 
