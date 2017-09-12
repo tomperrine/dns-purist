@@ -35,9 +35,10 @@ grep failed ${LOGFILE}
 
 echo starting - `date`
 
-# pass one - just dump all the IPs in all the zones, sort -u - this is very fast
+# pass one - just dump all the IPs and names in all the zones, sort -u - this is very fast
 
 time ../dns-purist.py --dump_ips *.zone *.revzone | sort -u > dns-ips.$DATE
+time ../dns-purist.py --dump_names *.zone *.revzone | sort -u > dns-ips.$DATE
 
 # pass two - do all the analysis, including using DNS lookups - this is rather slow
 time ../dns-purist.py --allow_dns_lookups *.zone *.revzone ../zone-skip-list.extzone > dns-health.$DATE
