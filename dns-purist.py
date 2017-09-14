@@ -7,6 +7,7 @@ import dns.query, dns.zone, dns.reversename, dns.resolver, dns.ipv4
 #
 # Global variables - TODO get rid of these
 #
+verbose = False
 debug = False
 # do or not allow "live" DNS lookups when trying to find matching PTRs for A/AAAA and v.v.
 # command line flag
@@ -76,6 +77,22 @@ def silent_print(fmt, *args, **kwargs):
 #        stderr.write("[%s] %s\n" % (time.asctime(), m))
         print(fmt, *args, **kwargs)
 
+def dns_error_print(fmt, *args, **kwargs):
+# this is used to print all dicovered DNS errors
+# the only accepted keyword arg is "end"
+    try: m = fmt % args
+    except:
+        # Catch mismatch between fmt/args; prevents logging.info from
+        # failing below, as well.
+        m = fmt
+        fmt = "%s"
+    if (silent_no_output):
+        return
+    else:
+#        stderr.write("[%s] %s\n" % (time.asctime(), m))
+        print(fmt, *args, **kwargs)
+
+
 def silent_endline():
     if (not silent_no_output):
         print()
@@ -116,11 +133,11 @@ def does_it_resolve(name, record_type):
     except dns.resolver.NXDOMAIN :
         return (False)
     except dns.exception.Timeout :
-        silent_print('ERROR: %s: DNS Timeout' % name)
+        dns_error_print('ERROR: %s: DNS Timeout' % name)
         return (False)
     except Exception as exception:
-        silent_print('ERROR: %s: UNKNOWN resolver error' % name)
-        silent_print(' exc: %s' % type(exception).__name__ )
+        dns_error_print('ERROR: %s: UNKNOWN resolver error' % name)
+        dns_error_print(' exc: %s' % type(exception).__name__ )
     return (True)
 
 
@@ -151,7 +168,7 @@ def load_forward_records(zone, record_type, zone_type):
         # for these kinds of errors
         if (zone_type != 'forward'):
             silent_endline()
-            silent_print('BADREC: forward record %s/%s found in reverse zone' % (fqdn,rdata.address))
+            dns_error_print('BADREC: forward record %s/%s found in reverse zone' % (fqdn,rdata.address))
             continue
 
         addr = ipaddress.ip_address(rdata.address)
@@ -173,7 +190,7 @@ def load_reverse_records(zone, record_type, zone_type):
     #make sure we aren't trying to load non-PTR records into the reverse dictionary
     #which would be a parameter error
     if (record_type != 'PTR'):
-      silent_print('load_reverse_records: invalid record type %s' % record_type)
+      dns_error_print('load_reverse_records: invalid record type %s' % record_type)
       sys.exit()
     for (qname, ttl, rdata) in zone.iterate_rdatas(record_type):
         # this is already a full address since we used relativize=False
@@ -184,7 +201,7 @@ def load_reverse_records(zone, record_type, zone_type):
         # for these kinds of errors
         if (zone_type != 'reverse'):
             silent_endline()
-            silent_print('BADREC: reverse record %s/%s found in forward zone' % (qname,rdata.target))
+            dns_error_print('BADREC: reverse record %s/%s found in forward zone' % (qname,rdata.target))
             continue
        # append the target we just found to the list of targets for this qname
         reverse_records[qname].append(rdata.target)
@@ -213,7 +230,7 @@ def load_cname_records(zone, zone_type):
         # for these kinds of errors
         if (zone_type != 'forward'):
             silent_endline()
-            silent_print('BADREC: CNAME record %s/%s found in non-forward zone' % (qname,rdata.target))
+            dns_error_print('BADREC: CNAME record %s/%s found in non-forward zone' % (qname,rdata.target))
             continue
         # append the target we just found to the list of targets for this qname
         cname_records[qname].append(rdata.target)
@@ -258,14 +275,14 @@ def find_reverse_from_forward_by_dns(revname):
     try:
         answers = dns.resolver.query(revname, 'PTR')
     except dns.resolver.NXDOMAIN :
-        #      silent_print('ERROR: %s: no PTR' % address)
+        #      dns_error_print('ERROR: %s: no PTR' % address)
         return ""
     except dns.exception.Timeout :
-        silent_print('ERROR: %s: DNS Timeout' % revname)
+        dns_error_print('ERROR: %s: DNS Timeout' % revname)
         return ""
     except Exception as exception:
-        silent_print('ERROR: %s: UNKNOWN resolver error' % revname)
-        silent_print(' exc: %s' % type(exception).__name__ )
+        dns_error_print('ERROR: %s: UNKNOWN resolver error' % revname)
+        dns_error_print(' exc: %s' % type(exception).__name__ )
         return ""
     return answers
 
@@ -358,7 +375,7 @@ def check_all_forwards() :
                 # found at least one valid PTR that points to this name
                 pass
             else:
-                silent_print('NOPTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
+                dns_error_print('NO_PTR: host %s has A %s, no matching PTR records found' % (fqdn, addr))
                 missing_ptr_count += 1
 
              ## FIXME - should use debug_print but there's logic here that needs to be cleaned
@@ -368,7 +385,7 @@ def check_all_forwards() :
                 if (addr_count < 1):
                     silent_endline()
                 else:
-                    silent_print(', ', end="")
+                    dns_error_print(', ', end="")
 
     debug_print('check_all_forwards returning %d' % missing_ptr_count)
     return missing_ptr_count
@@ -385,10 +402,10 @@ def check_all_reverses() :
                 if (find_forward_from_reverse(record, dns.reversename.to_address(reverse).decode())) :
                     debug_print('FORWARD_OK: addr %s has forward %s' % (reverse, record))
                 else:
-                    silent_print('NO_FORWARD: addr %s has NO matching forward' % (reverse))
+                    dns_error_print('NO_FORWARD: addr %s has no matching forward' % (reverse))
                     missing_forward_count += 1
             except dns.exception.SyntaxError :
-                silent_print('ERROR: Syntax error in PTR record <%s>' % reverse)
+                dns_error_print('ERROR: Syntax error in PTR record <%s>' % reverse)
                 continue
     debug_print('check_all_reverses returning %d' % missing_forward_count)
     return missing_forward_count
@@ -408,7 +425,7 @@ def check_all_cnames() :
         addr_count = len(cname_records[cname])
         # test for multiple CNAMEs
         if (addr_count > 1):
-            silent_print('CNAME_ERR: multiple CNAMES for %s' % cname)
+            dns_error_print('CNAME_ERR: multiple CNAMES for %s' % cname)
             cname_errors += 1
         # walk all the CNAMEs for this name, checking them all
         for rdata in cname_records[cname] :
@@ -417,7 +434,7 @@ def check_all_cnames() :
             # TODO -    so this test will never work - need to strip the zone (if present)
             # TODO -    somewhere around here in order to see if the portion is an IP address
             if (is_valid_ip(rdata)):
-                silent_print('CNAME_ERR_ADDRESS: CNAME %s -> %s' % (cname, rdata))
+                dns_error_print('CNAME_ERR_ADDRESS: CNAME %s -> %s' % (cname, rdata))
                 cname_errors += 1
                 # no need to check to see if resolvable
                 continue
@@ -435,14 +452,14 @@ def check_all_cnames() :
                 ## should we try to resolve this via DNS query?
                 if (allow_dns_lookups):
                     if (not (find_any_forward_by_dns(rdata))):
-                        silent_print('CNAME_ERR_NOT_RESOLVED: CNAME  %s ->  %s which does not resolve' % (cname, rdata))
+                        dns_error_print('CNAME_ERR_NOT_RESOLVED: CNAME  %s ->  %s which does not resolve' % (cname, rdata))
                         cname_errors += 1
                     # continue either way
                     continue
                 else :
                     # nope, not going to try DNS, so just error and continue
                     cname_errors += 1
-                    silent_print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
+                    dns_error_print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
     return cname_errors
 
 def dump_all_forward_addresses():
@@ -478,14 +495,14 @@ def dump_all_records():
 
 
 def main():
-    global debug, allow_dns_lookups, silent_no_output
+    global verbose, debug, allow_dns_lookups, silent_no_output
     # list of zones to process
     zone_names = []
 
 
-    usage = 'Usage: dns-purist [--debug] [--csv_output | --dump_ips | --dump_names | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone zonefile.extzone'
+    usage = 'Usage: dns-purist [--debug] [--verbose][--csv_output | --dump_ips | --dump_names | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone zonefile.extzone'
     make_list_for_nmap = False
-    debug = allow_dns_lookups = dump_ips = dump_names = dump_records = False
+    verbose = debug = allow_dns_lookups = dump_ips = dump_names = dump_records = False
     silent_no_output = dump_csvs = False
 
     missing_ptrs = missing_forwards = cname_errors = 0
@@ -495,7 +512,9 @@ def main():
         sys.exit()
 
     for arg in sys.argv[1:]:
-        if (arg == '--debug') :
+        if (arg == '--verbose') :
+            verbose = True
+        elif (arg == '--debug') :
             debug = True
         elif (arg == '--allow_dns_lookups') :
             allow_dns_lookups = True
@@ -526,7 +545,7 @@ def main():
     total_external_zones = 0
 
     for zone in zone_names :
-        if ( not ( silent_no_output or dump_names or dump_ips) ):
+        if (verbose):
             print('loading %s ... ' % zone, end="")
         total_zones += 1
         if (zone.endswith(zone_suffix)) :
@@ -571,8 +590,8 @@ def main():
         reverse_ptr_records_loaded = load_reverse_records(z, 'PTR', zone_type)
         total_reverse_records += reverse_ptr_records_loaded
 
-        if ( not ( dump_names or dump_ips) ):
-            silent_print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
+        if (verbose):
+            print('%d A records, %d AAAA records, %d CNAME records, %d PTR records loaded (%d total) ' %
              (forward_A_records_loaded, forward_AAAA_records_loaded, cnames_loaded, reverse_ptr_records_loaded,
               (forward_A_records_loaded + forward_AAAA_records_loaded + cnames_loaded + reverse_ptr_records_loaded)))
 

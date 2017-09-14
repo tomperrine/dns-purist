@@ -87,10 +87,10 @@ DNS-purist can also create useful lists, such as:
 
 * (--dump_names) List all DNS names contained in all loaded forward
   and reverse zones. This is useful for identifying all zones that may
-  be present in your DNS, even if not defined in your DNS. This can
-  include CNAME targets and PTR records to forward zones that you
-  don't control. This helps identify external dependencies you may
-  have on the DNS or systems outside your control.
+  be present in your DNS, even if not defined in your DNS. This
+  includes CNAME (names and targets) and PTR records to forward zones
+  that you don't control. This helps identify external dependencies
+  you may have on the DNS or systems outside your control.
 
 * (--dump_records) List all name/IP pairs gathered from all zones,
   forward and reverse. Dumped as "name: IP", whether loaded from A/AAAA
