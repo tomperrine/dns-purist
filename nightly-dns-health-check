@@ -7,22 +7,29 @@
 # RUN FROM CRON - nightly
 #
 
-TOPDIR=~tperrine/git-work/dns-purist
+# used for creating dirs, filenames
 DATE=`date +%Y%m%d`
-DIR=${TOPDIR}/DNS-data/${DATE}.dnsdata
 
-if [ -d "${DIR}" ]; then
-    echo "data directory ${DIR} exists - exit"
+# where to find all the things
+# in addition to being the holder of all data files
+# it also holds the skip list
+TOPDIR=~tperrine/git-work/dns-purist
+
+BINDIR=${TOPDIR}/bin
+DATADIR=${TOPDIR}/DNS-data/${DATE}.dnsdata
+
+if [ -d "${DATADIR}" ]; then
+    echo "data directory ${DATADIR} exists - exit"
     exit 1
 fi
 
-LOGFILE=${DIR}/dns-health-check.log
+LOGFILE=${DATADIR}/dns-health-check.log
 
 mkdir $DIR
 
-cd ${DIR}
+cd ${DATADIR}
 
-${TOPDIR}/big-zone-xfer > ${LOGFILE}
+${BINDIR}/big-zone-xfer > ${LOGFILE}
 echo transfer complete
 grep failed ${LOGFILE}
 
@@ -32,16 +39,16 @@ echo starting - `date`
 
 # pass one - just dump all the IPs and names in all the zones, sort -u - this is very fast
 
-time ${TOPDIR}/dns-purist.py --dump_ips *.zone *.revzone | sort -u > dns-ips.$DATE
-time ${TOPDIR}/dns-purist.py --dump_names *.zone *.revzone | sort -u > dns-names.$DATE
+time ${BINDIR}/dns-purist.py --dump_ips *.zone *.revzone | sort -u > dns-ips.$DATE
+time ${BINDIR}/dns-purist.py --dump_names *.zone *.revzone | sort -u > dns-names.$DATE
 
 # pass two - do all the analysis, including using DNS lookups - this is rather slow
-time ${TOPDIR}/dns-purist.py --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone > dns-health.$DATE
+time ${BINDIR}/dns-purist.py --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone > dns-health.$DATE
 
 #pass three - create the CSV output summary
 # horribly inefficient, but provides a good load test and is a hack until I can change the code
 
-time ${TOPDIR}/dns-purist.py --csv_output --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone
+time ${BINDIR}/dns-purist.py --csv_output --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone
 echo ending - `date`
 
 echo "differences between live IPs and DNS IPs"

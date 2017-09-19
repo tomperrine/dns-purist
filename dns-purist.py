@@ -452,14 +452,14 @@ def check_all_cnames() :
                 ## should we try to resolve this via DNS query?
                 if (allow_dns_lookups):
                     if (not (find_any_forward_by_dns(rdata))):
-                        dns_error_print('CNAME_ERR_NOT_RESOLVED: CNAME  %s ->  %s which does not resolve' % (cname, rdata))
+                        dns_error_print('CNAME_ERR_NOT_RESOLVED: CNAME  %s ->  %s which does not resolve' % (cname.to_text(omit_final_dot=True), rdata))
                         cname_errors += 1
                     # continue either way
                     continue
                 else :
                     # nope, not going to try DNS, so just error and continue
                     cname_errors += 1
-                    dns_error_print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname, rdata))
+                    dns_error_print('CNAME_ERR_NOT_FOUND: CNAME  %s ->  %s which is not in a loaded zone' % (cname.to_text(omit_final_dot=True), rdata))
     return cname_errors
 
 def dump_all_forward_addresses():
