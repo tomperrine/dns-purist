@@ -6,15 +6,10 @@
 #
 # RUN FROM CRON - nightly
 #
-# remove all the zone transfer files- do this at the top of the script, so the files are around for an hour if I wnat to look at them
-# open a log file with the current date/time
-# transfer all the zones
-# go to sleep for a while
-# do it again
 
 TOPDIR=~tperrine/git-work/dns-purist
 DATE=`date +%Y%m%d`
-DIR=${TOPDIR}/${DATE}.dnsdata
+DIR=${TOPDIR}/DNS-data/${DATE}.dnsdata
 
 if [ -d "${DIR}" ]; then
     echo "data directory ${DIR} exists - exit"
@@ -37,30 +32,30 @@ echo starting - `date`
 
 # pass one - just dump all the IPs and names in all the zones, sort -u - this is very fast
 
-time ../dns-purist.py --dump_ips *.zone *.revzone | sort -u > dns-ips.$DATE
-time ../dns-purist.py --dump_names *.zone *.revzone | sort -u > dns-ips.$DATE
+time ${TOPDIR}/dns-purist.py --dump_ips *.zone *.revzone | sort -u > dns-ips.$DATE
+time ${TOPDIR}/dns-purist.py --dump_names *.zone *.revzone | sort -u > dns-names.$DATE
 
 # pass two - do all the analysis, including using DNS lookups - this is rather slow
-time ../dns-purist.py --allow_dns_lookups *.zone *.revzone ../zone-skip-list.extzone > dns-health.$DATE
+time ${TOPDIR}/dns-purist.py --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone > dns-health.$DATE
 
 #pass three - create the CSV output summary
 # horribly inefficient, but provides a good load test and is a hack until I can change the code
 
-time ../dns-purist.py --csv_output --allow_dns_lookups *.zone *.revzone ../zone-skip-list.extzone
+time ${TOPDIR}/dns-purist.py --csv_output --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone
 echo ending - `date`
 
 echo "differences between live IPs and DNS IPs"
 echo word counts
-wc -l ../live-ips-latest.sorted dns-ips.$DATE
+wc -l ${TOPDIR}/live-ips-latest.sorted dns-ips.$DATE
 
 echo differences
-diff ../live-ips-latest.sorted dns-ips.$DATE | wc -l
+diff ${TOPDIR}/live-ips-latest.sorted dns-ips.$DATE | wc -l
 
 echo "live IPs NOT in DNS"
-diff ../live-ips-latest.sorted dns-ips.$DATE | grep '<' | wc -l
+diff ${TOPDIR}/live-ips-latest.sorted dns-ips.$DATE | grep '<' | wc -l
 
 echo "DNS IPs NOT live at last scan"
-diff ../live-ips-latest.sorted dns-ips.$DATE | grep '>' | wc -l
+diff ${TOPDIR}/live-ips-latest.sorted dns-ips.$DATE | grep '>' | wc -l
 
 
 
