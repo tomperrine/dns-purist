@@ -118,7 +118,7 @@ def in_external_zone(name):
 # if it is, return True, else False
     for extzone in external_zones:
         # we want to know if the given name is any kind of subset of the external zone
-#        silent_print('in_external_zone: name <%s> zone <%s>' % (name,extzone))
+        debug_print('in_external_zone: name <%s> extzone <%s>' % (name,extzone))
         if (not (name.find(extzone) == -1)):
             # we found it, we're done
             return True
@@ -341,19 +341,26 @@ def find_reverse_from_forward(fqdn, address, allow_dns_query):
 ############
 def find_forward_from_reverse(fqdn, address):
 # given an FQDN and IP address:
+# 0. if the address (reversed) appears in the skip list, consider it found and return TRUE
 # 1. ensure that the address has a forward address record that matches the FQDN (check the DB, no DNS calls)
 # ignore any extra PTR records that may match other FQDNs. they will be checked during some other call on some other FQDN
 # returns True if a MATCH is found, False otherwise even if there are SOME PTRs for the address
-    global allow_dns_lookups
+# 2. if there is a forward, and it appears in the skip list, consider it found immediately
 
-    debug_print('find_forward_from_reverse: fqdn %s address <%s>' % (fqdn, address))
+    temp_ptr = ipaddress.ip_address(address).reverse_pointer
+
+    debug_print('find_forward_from_reverse: fqdn %s address <%s> reverse <%s>' % (fqdn, address, temp_ptr))
+
+    if (in_external_zone(temp_ptr)):
+        return True
+
 
    # first, see if we have any forwards for the FQDN records at all
    # then, see if any of them match the given address
 
     # we're only looking in the DB, not in DNS
     for target in forward_records[fqdn] :
-        debug_print('checking cache - target <%s>, address <%s>' % (target, address))
+        debug_print('find_forward_from_reverse - target <%s>, address <%s>' % (target, address))
         if (str(target) == str(address)) :
             debug_print('find_forward_from_reverse: cache MATCH target %s address %s' % (target, address))
             return True
@@ -528,12 +535,6 @@ def main():
             dump_csvs = True
         else :
             zone_names.append(arg)
-
-    if (dump_csvs) :
-        # silent - no per-record/per-error output
-        silent_no_output = True
-        # turn off all non debug options
-        dump_ips = dump_names = dump_records = False
 
     # go read all the zones via AXFR or zone file, depending on the argument
     # and process each zone multiple times, once for A records, once for AAAA, once for CNAME and once for PTR

@@ -43,10 +43,7 @@ time ${BINDIR}/dns-purist.py --dump_ips *.zone *.revzone | sort -u > dns-ips.$DA
 time ${BINDIR}/dns-purist.py --dump_names *.zone *.revzone | sort -u > dns-names.$DATE
 
 # pass two - do all the analysis, including using DNS lookups - this is rather slow
-time ${BINDIR}/dns-purist.py --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone > dns-health.$DATE
-
-#pass three - create the CSV output summary
-# horribly inefficient, but provides a good load test and is a hack until I can change the code
+time ${BINDIR}/dns-purist.py --csv_output --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone > dns-health.$DATE
 
 time ${BINDIR}/dns-purist.py --csv_output --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone
 echo ending - `date`

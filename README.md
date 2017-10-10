@@ -96,7 +96,7 @@ DNS-purist can also create useful lists, such as:
   forward and reverse. Dumped as "name: IP", whether loaded from A/AAAA
   or PTR records.
 
-* (--csv_output) Suppress all per-record error messages and status
-  messages, and deliver a CSV summary. First line is data names for
-  each field (A records loaded, etc.)  Second line is actual numeric
-  data. Suitable for pasting into Excel or feeding into GnuPlot.
+* (--csv_output) Append and deliver a CSV summary of the report. First
+  line is data names for each field (A records loaded, etc.)  Second
+  line is actual numeric data. Suitable for pasting into Excel or
+  feeding into GnuPlot.
