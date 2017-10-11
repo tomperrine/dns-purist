@@ -41,11 +41,11 @@ echo starting - `date`
 
 time ${BINDIR}/dns-purist.py --dump_ips *.zone *.revzone | sort -u > dns-ips.$DATE
 time ${BINDIR}/dns-purist.py --dump_names *.zone *.revzone | sort -u > dns-names.$DATE
+time ${BINDIR}/dns-purist.py --dump_records *.zone *.revzone | sort -u > dns-records.$DATE
+
 
 # pass two - do all the analysis, including using DNS lookups - this is rather slow
 time ${BINDIR}/dns-purist.py --csv_output --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone > dns-health.$DATE
-
-time ${BINDIR}/dns-purist.py --csv_output --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone
 echo ending - `date`
 
 echo "differences between live IPs and DNS IPs"
