@@ -35,7 +35,7 @@ grep failed ${LOGFILE}
 
 # now to run The Big Job
 
-echo starting - `date`
+echo `date` - dumping IPs, names and records
 
 # pass one - just dump all the IPs and names in all the zones, sort -u - this is very fast
 
@@ -43,10 +43,14 @@ time ${BINDIR}/dns-purist.py --dump_ips *.zone *.revzone | sort -u > dns-ips.$DA
 time ${BINDIR}/dns-purist.py --dump_names *.zone *.revzone | sort -u > dns-names.$DATE
 time ${BINDIR}/dns-purist.py --dump_records *.zone *.revzone | sort -u > dns-records.$DATE
 
+echo `date` - begin the big run with --all-w_dns_lookups
 
 # pass two - do all the analysis, including using DNS lookups - this is rather slow
 time ${BINDIR}/dns-purist.py --csv_output --allow_dns_lookups *.zone *.revzone ${TOPDIR}/zone-skip-list.extzone > dns-health.$DATE
-echo ending - `date`
+echo `date` - big run done
+
+echo CSV statistics
+tail -2 dns-health.$DATE
 
 echo "differences between live IPs and DNS IPs"
 echo word counts
