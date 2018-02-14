@@ -15,8 +15,12 @@ DATE=`date +%Y%m%d`
 # it also holds the skip list
 TOPDIR=~tperrine/git-work/dns-purist
 
+# the programs
 BINDIR=${TOPDIR}/bin
+# the nightly data
 DATADIR=${TOPDIR}/DNS-data/${DATE}.dnsdata
+# the dir above where the master CSV summary can be found
+MASTERDIR=${TOPDIR}/DNS-data
 
 if [ -d "${DATADIR}" ]; then
     echo "data directory ${DATADIR} exists - exit"
@@ -51,6 +55,9 @@ echo `date` - big run done
 
 echo CSV statistics
 tail -2 dns-health.$DATE
+
+# append the CSV to the master CSV
+echo "$DATE,"`tail -1 dns-health.$DATE` >> $MASTERDIR/dns-master-auto.csv
 
 echo "differences between live IPs and DNS IPs"
 echo word counts
