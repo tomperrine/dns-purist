@@ -10,3 +10,5 @@ set key box
 set tic scale 0
 set grid ytics
 set xtics nomirror rotate by -45
+
+set size 0.95, 1

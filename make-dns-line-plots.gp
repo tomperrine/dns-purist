@@ -1,4 +1,4 @@
-##load "basic-settings.gp"
+load "basic-settings.gp"
 set terminal png font arial 14 size 1200,900 background '#FFFFFF'
 
 set xlabel "Date"

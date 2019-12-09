@@ -488,18 +488,26 @@ def dump_all_forward_names():
     for fqdn in forward_records.keys():
         silent_print('%s' % fqdn)
 
-def dump_all_records():
-# for each record print both the name and the IP address
-    for fqdn in forward_records.keys():
-        for addr in forward_records[fqdn] :
-            silent_print('%s %s' % (fqdn,addr))
-# and the reverses
+def dump_all_records(single_line):
+# two cases
+# original/default: for each record print both the name and the IP address
+# single_line mode: print the name followed by a comma-separated list of IP addresses
+
+# easiest and cleanist to do very separately
+# do the original version first
+    if (not single_line):
+        for fqdn in forward_records.keys():
+            for addr in forward_records[fqdn] :
+                silent_print('%s %s' % (fqdn,addr))
+    else :
+        for fqdn in forward_records.keys():
+            silent_print('%s' % fqdn, end='')
+            for addr in forward_records[fqdn] :
+                silent_print(',%s' % addr, end='')
+            silent_print('')
+# and the reverses - inherently only a single line
     for reverse in reverse_records.keys():
         silent_print('%s %s' % (reverse, dns.reversename.to_address(reverse).decode('utf-8')))
-
-
-
-
 
 def main():
     global verbose, debug, allow_dns_lookups, silent_no_output
@@ -507,9 +515,9 @@ def main():
     zone_names = []
 
 
-    usage = 'Usage: dns-purist [--debug] [--verbose][--csv_output | --dump_ips | --dump_names | --dump_records] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone zonefile.extzone'
+    usage = 'Usage: dns-purist [--debug] [--verbose][--csv_output | --dump_ips | --dump_names | --dump_records [--single_line]] [--allow_dns_lookups] targetzone, zonefile.zone, zonefile.revzone zonefile.extzone'
     make_list_for_nmap = False
-    verbose = debug = allow_dns_lookups = dump_ips = dump_names = dump_records = False
+    verbose = debug = allow_dns_lookups = dump_ips = dump_names = dump_records = single_line = False
     silent_no_output = dump_csvs = False
 
     missing_ptrs = missing_forwards = cname_errors = 0
@@ -531,6 +539,8 @@ def main():
             dump_names = True
         elif (arg == '--dump_records') :
             dump_records = True
+        elif (arg == '--single_line') :
+            single_line = True
         elif (arg == '--csv_output') :
             dump_csvs = True
         else :
@@ -606,7 +616,7 @@ def main():
         dump_all_forward_names()
         sys.exit()
     elif (dump_records):
-        dump_all_records()
+        dump_all_records(single_line)
     else :
         # do all the forward record tests
         missing_ptrs = check_all_forwards()
