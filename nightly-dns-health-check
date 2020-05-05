@@ -72,5 +72,8 @@ diff ${TOPDIR}/live-ips-latest.sorted dns-ips.$DATE | grep '<' | wc -l
 echo "DNS IPs NOT live at last scan"
 diff ${TOPDIR}/live-ips-latest.sorted dns-ips.$DATE | grep '>' | wc -l
 
+for file in *.gp; do 
+    gnuplot -p -c $file &
+done
 
 
