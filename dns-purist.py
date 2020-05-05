@@ -406,7 +406,8 @@ def check_all_reverses() :
         for record in reverse_records[reverse] :
             try:
                 # python3.6.x - change from 3.5.0 requires .decode here
-                if (find_forward_from_reverse(record, dns.reversename.to_address(reverse).decode())) :
+                # python3.7.7 - have to take out all the .decode()
+                if (find_forward_from_reverse(record, dns.reversename.to_address(reverse))) :
                     debug_print('FORWARD_OK: addr %s has forward %s' % (reverse, record))
                 else:
                     dns_error_print('NO_FORWARD: addr %s has no matching forward' % (reverse))
@@ -481,7 +482,7 @@ def dump_all_forward_addresses():
 def dump_all_reverse_addresses():
 # print all the PTR record ADDRESSES to STDOUT
     for reverse in reverse_records.keys():
-        silent_print('%s' % dns.reversename.to_address(reverse).decode('utf-8'))
+        silent_print('%s' % dns.reversename.to_address(reverse))
 
 def dump_all_forward_names():
 # print all the forward record NAMES to STDOUT
@@ -507,7 +508,7 @@ def dump_all_records(single_line):
             silent_print('')
 # and the reverses - inherently only a single line
     for reverse in reverse_records.keys():
-        silent_print('%s %s' % (reverse, dns.reversename.to_address(reverse).decode('utf-8')))
+        silent_print('%s %s' % (reverse, dns.reversename.to_address(reverse)))
 
 def main():
     global verbose, debug, allow_dns_lookups, silent_no_output
