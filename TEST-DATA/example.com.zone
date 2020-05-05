@@ -2,7 +2,7 @@
 ;;
 $TTL 1h		; default time to live for resource records
 @		soa	sample.example.com.	hostmaster.example.com. (
-			2017101000	; serial
+			2020013100	; serial
 			8h		; refresh
 			1h		; retry
 			7d		; expire
@@ -17,6 +17,7 @@ $TTL 1h		; default time to live for resource records
 should-be-missing	a	192.0.2.100
 
 a-real-host		a	192.0.2.100
+			aaaa	2620::dead:beef
 
 ;; some cnames to test
 some-cname		cname	a-real-host.example.com.
